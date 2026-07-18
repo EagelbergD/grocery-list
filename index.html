@@ -2,8 +2,15 @@
 <html lang="he" dir="rtl">
 <head>
 <meta charset="UTF-8" />
-<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
-<meta name="theme-color" content="#0f766e" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
+<meta name="theme-color" content="#0b5d57" />
+<meta name="mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+<meta name="apple-mobile-web-app-title" content="קניות" />
+<link rel="manifest" href="manifest.json" />
+<link rel="apple-touch-icon" href="icon.svg" />
+<link rel="icon" href="icon.svg" type="image/svg+xml" />
 <title>רשימת קניות</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -26,26 +33,33 @@
     --shadow-lg: 0 8px 30px rgba(20,32,43,.12);
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
-  html, body { margin: 0; padding: 0; }
+  html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
   body {
     font-family: "Heebo", -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
     background: var(--bg);
     color: var(--text);
-    padding-bottom: 92px;
     -webkit-font-smoothing: antialiased;
+    touch-action: manipulation;
+    /* app frame: fixed header + scrollable content + fixed tab bar */
+    display: flex; flex-direction: column;
+    height: 100vh; height: 100dvh;
   }
   header {
-    position: sticky; top: 0; z-index: 10;
+    flex-shrink: 0; z-index: 10;
     background: linear-gradient(135deg, #12867c 0%, #0b5d57 100%);
     color: #fff;
-    padding: 16px 18px;
+    padding: calc(14px + env(safe-area-inset-top)) 18px 14px;
     box-shadow: 0 2px 12px rgba(11,93,87,.25);
     display: flex; align-items: center; justify-content: space-between;
   }
-  header h1 { font-size: 21px; margin: 0; font-weight: 800; letter-spacing: -.3px; }
+  header h1 { font-size: 20px; margin: 0; font-weight: 800; letter-spacing: -.3px; }
   header .sync { font-size: 11px; opacity: .9; background: rgba(255,255,255,.18); padding: 4px 10px; border-radius: 20px; font-weight: 500; }
 
-  main { max-width: 680px; margin: 0 auto; padding: 14px; }
+  main {
+    flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
+    overscroll-behavior: contain;
+    width: 100%; max-width: 680px; margin: 0 auto; padding: 14px 14px 28px;
+  }
 
   /* Quick add */
   .quickadd {
@@ -77,16 +91,28 @@
   .category.collapsed .cat-body { display: none; }
 
   .product {
-    display: flex; align-items: center; gap: 8px;
-    padding: 9px 12px 9px 8px; border-top: 1px solid var(--border);
-    transition: background .15s;
+    position: relative; overflow: hidden;
+    border-top: 1px solid var(--border);
+    touch-action: pan-y; /* we handle horizontal swipes ourselves */
   }
-  .product.is-finished { background: linear-gradient(90deg, rgba(255,228,222,.5), transparent); }
+  .product.removing { transition: height .18s ease, opacity .18s ease; }
+  .swipe-del {
+    position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between;
+    padding: 0 22px; background: #e5484d; color: #fff; font-size: 22px; opacity: 0;
+  }
+  .swipe-del.armed { background: #c0341d; }
+  .row-inner {
+    position: relative; display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px 9px 8px; background: var(--card);
+    will-change: transform;
+  }
+  .row-inner.snap { transition: transform .18s ease; }
+  .product.is-finished .row-inner { background: linear-gradient(90deg, rgba(255,228,222,.5), var(--card)); }
   /* the tap target that cycles status */
   .toggle {
     flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
     background: var(--in-stock-bg); border: 1.5px solid transparent;
-    border-radius: 12px; padding: 10px 12px; cursor: pointer; text-align: start;
+    border-radius: 12px; padding: 12px 14px; min-height: 52px; cursor: pointer; text-align: start;
     transition: transform .08s, box-shadow .15s, background .15s;
   }
   .toggle:active { transform: scale(.98); }
@@ -107,7 +133,7 @@
   .toggle.in_stock .badge { color: var(--in-stock-fg); }
   .toggle.finished .badge { color: var(--finished-fg); }
   .toggle.ordered  .badge { color: var(--ordered-fg); }
-  .edit-btn { flex-shrink: 0; background: none; border: none; color: #aeb6bf; font-size: 17px; padding: 8px 6px; cursor: pointer; }
+  .edit-btn { flex-shrink: 0; background: none; border: none; color: #aeb6bf; font-size: 18px; padding: 12px 8px; min-width: 44px; min-height: 44px; cursor: pointer; }
   .edit-btn:active { color: var(--muted); }
 
   .addrow { padding: 13px 16px; border-top: 1px dashed var(--border); color: var(--accent); font-weight: 600; font-size: 15px; cursor: pointer; }
@@ -120,24 +146,25 @@
   .shop-group-title { font-size: 13px; color: var(--muted); font-weight: 800; margin: 18px 6px 8px; text-transform: none; letter-spacing: .2px; }
   .empty { text-align: center; color: var(--muted); padding: 64px 16px; }
   .empty .big { font-size: 52px; margin-bottom: 12px; }
-  .order-all { position: sticky; bottom: 92px; width: 100%; padding: 15px; margin-top: 18px; background: var(--accent); color: #fff; border: none; border-radius: 16px; font-size: 16px; font-weight: 700; box-shadow: var(--shadow-lg); transition: transform .08s; cursor: pointer; }
+  .order-all { position: sticky; bottom: 8px; width: 100%; padding: 15px; margin-top: 18px; background: var(--accent); color: #fff; border: none; border-radius: 16px; font-size: 16px; font-weight: 700; box-shadow: var(--shadow-lg); transition: transform .08s; cursor: pointer; }
   .order-all:active { transform: scale(.98); }
 
-  /* Bottom nav */
+  /* Bottom nav — part of the app frame, always visible */
   nav {
-    position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
-    background: rgba(255,255,255,.92); backdrop-filter: blur(10px);
+    flex-shrink: 0; z-index: 20;
+    background: rgba(255,255,255,.96); backdrop-filter: blur(10px);
     border-top: 1px solid var(--border);
     display: flex; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
   }
   nav button {
-    flex: 1; position: relative; background: transparent; border: none; padding: 9px;
-    color: var(--muted); font-size: 13px; font-weight: 600; font-family: inherit;
+    flex: 1; position: relative; background: transparent; border: none;
+    min-height: 52px; padding: 8px;
+    color: var(--muted); font-size: 14px; font-weight: 600; font-family: inherit;
     display: flex; align-items: center; justify-content: center; gap: 8px;
     border-radius: 14px; cursor: pointer; transition: background .15s, color .15s, transform .08s;
   }
   nav button:active { transform: scale(.96); }
-  nav button .ico { font-size: 20px; }
+  nav button .ico { font-size: 22px; }
   nav button.active { color: #fff; background: var(--accent); box-shadow: 0 4px 12px rgba(15,118,110,.3); }
   nav .nav-count { font-size: 11px; font-weight: 700; background: var(--finished-fg); color:#fff; border-radius: 10px; padding: 1px 7px; }
   nav button.active .nav-count { background: rgba(255,255,255,.25); }
@@ -340,15 +367,18 @@ function render() {
 
 function productRow(p) {
   return `
-    <div class="product ${p.status === STATUS.FINISHED ? 'is-finished' : ''}">
-      <button class="toggle ${p.status}" onclick="cycleStatus('${p.id}')">
-        <span class="main">
-          <span class="name">${esc(p.name)}</span>
-          ${p.note ? `<span class="note">${esc(p.note)}</span>` : ''}
-        </span>
-        <span class="badge">${STATUS_LABEL[p.status]}<span class="cyc">↻</span></span>
-      </button>
-      <button class="edit-btn" onclick="openProductEditor('${p.id}')">✏️</button>
+    <div class="product ${p.status === STATUS.FINISHED ? 'is-finished' : ''}" data-id="${p.id}">
+      <div class="swipe-del"><span>🗑️</span><span>🗑️</span></div>
+      <div class="row-inner">
+        <button class="toggle ${p.status}" onclick="cycleStatus('${p.id}')">
+          <span class="main">
+            <span class="name">${esc(p.name)}</span>
+            ${p.note ? `<span class="note">${esc(p.note)}</span>` : ''}
+          </span>
+          <span class="badge">${STATUS_LABEL[p.status]}<span class="cyc">↻</span></span>
+        </button>
+        <button class="edit-btn" onclick="openProductEditor('${p.id}')">✏️</button>
+      </div>
     </div>`;
 }
 
@@ -423,6 +453,70 @@ function toggleCat(id) {
   collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
   render();
 }
+
+/* ---- Swipe-to-delete on product rows (either direction) ---- */
+let swipe = null;
+let suppressClick = false;
+const SWIPE_TRIGGER = 0.4; // fraction of row width that arms the delete
+
+appEl.addEventListener('touchstart', e => {
+  const row = e.target.closest('.product');
+  if (!row || row.classList.contains('removing')) return;
+  swipe = {
+    row, inner: row.querySelector('.row-inner'), del: row.querySelector('.swipe-del'),
+    x: e.touches[0].clientX, y: e.touches[0].clientY,
+    dx: 0, locked: false, armed: false, width: row.offsetWidth,
+  };
+  swipe.inner.classList.remove('snap');
+}, { passive: true });
+
+appEl.addEventListener('touchmove', e => {
+  if (!swipe) return;
+  const dx = e.touches[0].clientX - swipe.x;
+  const dy = e.touches[0].clientY - swipe.y;
+  if (!swipe.locked) {
+    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { swipe = null; return; } // it's a scroll
+    if (Math.abs(dx) < 12) return;
+    swipe.locked = true;
+  }
+  swipe.dx = dx;
+  swipe.inner.style.transform = `translateX(${dx}px)`;
+  swipe.del.style.opacity = Math.min(Math.abs(dx) / 60, 1);
+  const armed = Math.abs(dx) > swipe.width * SWIPE_TRIGGER;
+  if (armed !== swipe.armed) {
+    swipe.armed = armed;
+    swipe.del.classList.toggle('armed', armed);
+    if (armed && navigator.vibrate) navigator.vibrate(10);
+  }
+}, { passive: true });
+
+appEl.addEventListener('touchend', () => {
+  if (!swipe) return;
+  const s = swipe; swipe = null;
+  if (!s.locked) return;
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 400);
+  if (s.armed) {
+    // slide fully out, collapse, then delete
+    const id = s.row.dataset.id;
+    s.inner.classList.add('snap');
+    s.inner.style.transform = `translateX(${s.dx > 0 ? s.width : -s.width}px)`;
+    s.row.classList.add('removing');
+    s.row.style.height = s.row.offsetHeight + 'px';
+    requestAnimationFrame(() => { s.row.style.height = '0px'; s.row.style.opacity = '0'; });
+    setTimeout(() => deleteProduct(id), 190);
+  } else {
+    s.inner.classList.add('snap');
+    s.inner.style.transform = '';
+    s.del.style.opacity = '0';
+    s.del.classList.remove('armed');
+  }
+});
+
+/* a horizontal swipe must not also fire the row's click (status toggle / edit) */
+appEl.addEventListener('click', e => {
+  if (suppressClick) { e.stopPropagation(); e.preventDefault(); }
+}, true);
 
 function quickAdd() {
   const input = document.getElementById('quickInput');
