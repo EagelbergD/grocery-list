@@ -1,0 +1,521 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
+<meta name="theme-color" content="#0f766e" />
+<title>רשימת קניות</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #eef1f5;
+    --card: #ffffff;
+    --text: #14202b;
+    --muted: #7b8794;
+    --border: #e8ecf1;
+    --accent: #0f766e;
+    --accent-dark: #0b5d57;
+    --accent-soft: #d5f0ec;
+    /* status colors */
+    --in-stock-bg: #eef1f4;   --in-stock-fg: #52606d;
+    --finished-bg: #ffe4de;   --finished-fg: #c0341d;
+    --ordered-bg:  #d6efe5;   --ordered-fg:  #0a7c52;
+    --shadow: 0 1px 2px rgba(20,32,43,.06), 0 2px 8px rgba(20,32,43,.04);
+    --shadow-lg: 0 8px 30px rgba(20,32,43,.12);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body { margin: 0; padding: 0; }
+  body {
+    font-family: "Heebo", -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    padding-bottom: 92px;
+    -webkit-font-smoothing: antialiased;
+  }
+  header {
+    position: sticky; top: 0; z-index: 10;
+    background: linear-gradient(135deg, #12867c 0%, #0b5d57 100%);
+    color: #fff;
+    padding: 16px 18px;
+    box-shadow: 0 2px 12px rgba(11,93,87,.25);
+    display: flex; align-items: center; justify-content: space-between;
+  }
+  header h1 { font-size: 21px; margin: 0; font-weight: 800; letter-spacing: -.3px; }
+  header .sync { font-size: 11px; opacity: .9; background: rgba(255,255,255,.18); padding: 4px 10px; border-radius: 20px; font-weight: 500; }
+
+  main { max-width: 680px; margin: 0 auto; padding: 14px; }
+
+  /* Quick add */
+  .quickadd {
+    display: flex; gap: 8px; margin-bottom: 16px;
+  }
+  .quickadd input {
+    flex: 1; padding: 13px 16px; font-size: 16px; font-family: inherit;
+    border: 1px solid var(--border); border-radius: 14px; background: var(--card);
+    box-shadow: var(--shadow); outline: none;
+  }
+  .quickadd input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
+  .quickadd button {
+    width: 52px; flex-shrink: 0; font-size: 26px; line-height: 1;
+    border: none; border-radius: 14px; background: var(--accent); color: #fff; font-weight: 700;
+    box-shadow: var(--shadow); transition: transform .08s;
+  }
+  .quickadd button:active { transform: scale(.92); }
+
+  /* Category */
+  .category { background: var(--card); border-radius: 18px; margin-bottom: 14px; box-shadow: var(--shadow); overflow: hidden; }
+  .cat-head {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 15px 16px; cursor: pointer; user-select: none;
+  }
+  .cat-head .title { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; }
+  .cat-head .count { background: var(--accent-soft); color: var(--accent-dark); font-size: 12px; font-weight: 700; border-radius: 20px; padding: 2px 9px; min-width: 22px; text-align: center; }
+  .chev { transition: transform .2s; color: var(--muted); font-size: 13px; }
+  .category.collapsed .chev { transform: rotate(-90deg); }
+  .category.collapsed .cat-body { display: none; }
+
+  .product {
+    display: flex; align-items: center; gap: 8px;
+    padding: 9px 12px 9px 8px; border-top: 1px solid var(--border);
+    transition: background .15s;
+  }
+  .product.is-finished { background: linear-gradient(90deg, rgba(255,228,222,.5), transparent); }
+  /* the tap target that cycles status */
+  .toggle {
+    flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
+    background: var(--in-stock-bg); border: 1.5px solid transparent;
+    border-radius: 12px; padding: 10px 12px; cursor: pointer; text-align: start;
+    transition: transform .08s, box-shadow .15s, background .15s;
+  }
+  .toggle:active { transform: scale(.98); }
+  .toggle.in_stock { background: var(--in-stock-bg); }
+  .toggle.finished { background: var(--finished-bg); border-color: rgba(192,52,29,.25); }
+  .toggle.ordered  { background: var(--ordered-bg); }
+  .toggle .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+  .toggle .name { font-size: 16px; font-weight: 500; }
+  .toggle.finished .name { font-weight: 700; }
+  .toggle .note { font-size: 13px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .badge {
+    flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
+    min-width: 76px; justify-content: center;
+    padding: 7px 10px; border-radius: 9px; font-size: 14px; font-weight: 700;
+    background: rgba(255,255,255,.7);
+  }
+  .badge .cyc { font-size: 12px; opacity: .65; }
+  .toggle.in_stock .badge { color: var(--in-stock-fg); }
+  .toggle.finished .badge { color: var(--finished-fg); }
+  .toggle.ordered  .badge { color: var(--ordered-fg); }
+  .edit-btn { flex-shrink: 0; background: none; border: none; color: #aeb6bf; font-size: 17px; padding: 8px 6px; cursor: pointer; }
+  .edit-btn:active { color: var(--muted); }
+
+  .addrow { padding: 13px 16px; border-top: 1px dashed var(--border); color: var(--accent); font-weight: 600; font-size: 15px; cursor: pointer; }
+  .addrow:active { background: var(--accent-soft); }
+
+  .add-category { display: block; width: 100%; padding: 15px; background: transparent; border: 1.5px dashed #cfd6de; border-radius: 16px; color: var(--muted); font-size: 15px; font-weight: 600; cursor: pointer; }
+  .add-category:active { background: #fff; }
+
+  /* Shopping list view */
+  .shop-group-title { font-size: 13px; color: var(--muted); font-weight: 800; margin: 18px 6px 8px; text-transform: none; letter-spacing: .2px; }
+  .empty { text-align: center; color: var(--muted); padding: 64px 16px; }
+  .empty .big { font-size: 52px; margin-bottom: 12px; }
+  .order-all { position: sticky; bottom: 92px; width: 100%; padding: 15px; margin-top: 18px; background: var(--accent); color: #fff; border: none; border-radius: 16px; font-size: 16px; font-weight: 700; box-shadow: var(--shadow-lg); transition: transform .08s; cursor: pointer; }
+  .order-all:active { transform: scale(.98); }
+
+  /* Bottom nav */
+  nav {
+    position: fixed; bottom: 0; left: 0; right: 0; z-index: 20;
+    background: rgba(255,255,255,.92); backdrop-filter: blur(10px);
+    border-top: 1px solid var(--border);
+    display: flex; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+  }
+  nav button {
+    flex: 1; position: relative; background: transparent; border: none; padding: 9px;
+    color: var(--muted); font-size: 13px; font-weight: 600; font-family: inherit;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    border-radius: 14px; cursor: pointer; transition: background .15s, color .15s, transform .08s;
+  }
+  nav button:active { transform: scale(.96); }
+  nav button .ico { font-size: 20px; }
+  nav button.active { color: #fff; background: var(--accent); box-shadow: 0 4px 12px rgba(15,118,110,.3); }
+  nav .nav-count { font-size: 11px; font-weight: 700; background: var(--finished-fg); color:#fff; border-radius: 10px; padding: 1px 7px; }
+  nav button.active .nav-count { background: rgba(255,255,255,.25); }
+
+  /* Modal */
+  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 50; display: none; align-items: flex-end; }
+  .overlay.open { display: flex; }
+  .sheet { background: var(--card); width: 100%; max-width: 680px; margin: 0 auto; border-radius: 18px 18px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
+  .sheet h3 { margin: 0 0 14px; font-size: 18px; }
+  .sheet label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
+  .sheet input, .sheet select { width: 100%; padding: 12px; font-size: 16px; border: 1px solid var(--border); border-radius: 10px; }
+  .sheet .actions { display: flex; gap: 10px; margin-top: 18px; }
+  .sheet .actions button { flex: 1; padding: 13px; font-size: 16px; font-weight: 700; border: none; border-radius: 12px; }
+  .btn-primary { background: var(--accent); color: #fff; }
+  .btn-secondary { background: var(--in-stock-bg); color: var(--text); }
+  .btn-danger { background: var(--finished-bg); color: var(--finished-fg); }
+</style>
+</head>
+<body>
+<header>
+  <h1>🛒 רשימת קניות</h1>
+  <span class="sync" id="syncStatus">מקומי</span>
+</header>
+
+<main id="app"></main>
+
+<nav>
+  <button id="navLists" class="active" onclick="setView('lists')">
+    <span class="ico">📋</span><span>רשימות</span>
+  </button>
+  <button id="navShop" onclick="setView('shop')">
+    <span class="ico">🛍️</span><span>לקנות</span><span class="nav-count" id="navCount" style="display:none"></span>
+  </button>
+</nav>
+
+<div class="overlay" id="overlay">
+  <div class="sheet" id="sheet"></div>
+</div>
+
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script>
+/* =========================================================================
+   DATA LAYER — Supabase (shared cloud DB + realtime sync between phones)
+   ========================================================================= */
+const SUPABASE_URL = 'https://yzoyctkyesrzgqijgpfw.supabase.co';
+const SUPABASE_KEY = 'sb_publishable_8FFPLUpRMGJq05561Lcj-Q_kGzLg1rJ';
+const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
+
+const STATUS = { IN_STOCK: 'in_stock', FINISHED: 'finished', ORDERED: 'ordered' };
+const STATUS_NEXT = { in_stock: 'finished', finished: 'ordered', ordered: 'in_stock' };
+const STATUS_LABEL = { in_stock: 'יש', finished: 'נגמר', ordered: 'הוזמן' };
+
+let state = { categories: [], products: [] };
+let view = 'lists';
+const collapsed = new Set();
+
+function uid() { return crypto.randomUUID(); }
+
+const syncEl = document.getElementById('syncStatus');
+function setSync(text, ok) {
+  syncEl.textContent = text;
+  syncEl.style.background = ok ? 'rgba(255,255,255,.18)' : 'rgba(192,52,29,.85)';
+}
+
+/* row mappers: DB snake_case <-> app camelCase */
+const prodFromRow = r => ({ id: r.id, categoryId: r.category_id, name: r.name, status: r.status, note: r.note || '', isCustom: r.is_custom });
+const catFromRow = r => ({ id: r.id, name: r.name, sortOrder: r.sort_order || 0 });
+
+async function loadAll() {
+  setSync('טוען…', true);
+  const [cats, prods] = await Promise.all([
+    db.from('categories').select('*').order('sort_order').order('created_at'),
+    db.from('products').select('*').order('name'),
+  ]);
+  if (cats.error || prods.error) { setSync('שגיאת חיבור', false); console.error(cats.error || prods.error); return; }
+  state.categories = cats.data.map(catFromRow);
+  state.products = prods.data.map(prodFromRow);
+  if (!state.categories.length) { await seedRemote(); return; }
+  setSync('מסונכרן ✓', true);
+  render();
+}
+
+async function seedRemote() {
+  const catNames = ['מוצרי חלב','חטיפים','קפואים','ירקות ופירות','מאפים','ניקיון'];
+  const catRows = catNames.map((name, i) => ({ id: uid(), name, sort_order: i }));
+  const byName = Object.fromEntries(catRows.map(c => [c.name, c.id]));
+  const seedProds = [
+    ['מוצרי חלב','חלב'],['מוצרי חלב','גבינה צהובה'],['מוצרי חלב','קוטג׳'],['מוצרי חלב','יוגורט'],['מוצרי חלב','ביצים'],
+    ['חטיפים','במבה'],['חטיפים','ביסלי'],['חטיפים','שוקולד'],
+    ['קפואים','אפונה קפואה'],['קפואים','פיצה'],
+    ['ירקות ופירות','עגבניות'],['ירקות ופירות','מלפפונים'],['ירקות ופירות','בננות'],['ירקות ופירות','תפוחים'],
+    ['מאפים','לחם'],['מאפים','פיתות'],
+    ['ניקיון','סבון כלים'],['ניקיון','נייר טואלט'],
+  ].map(([cat, name]) => ({ id: uid(), category_id: byName[cat], name }));
+  await db.from('categories').insert(catRows);
+  await db.from('products').insert(seedProds);
+  await loadAll();
+}
+
+/* realtime: apply changes coming from the other phone */
+function applyChange(list, fromRow, payload) {
+  const arr = state[list];
+  if (payload.eventType === 'DELETE') {
+    state[list] = arr.filter(x => x.id !== payload.old.id);
+    if (list === 'categories') state.products = state.products.filter(p => p.categoryId !== payload.old.id);
+  } else {
+    const item = fromRow(payload.new);
+    const i = arr.findIndex(x => x.id === item.id);
+    if (i >= 0) arr[i] = item; else arr.push(item);
+  }
+  render();
+}
+db.channel('grocery-sync')
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, p => applyChange('products', prodFromRow, p))
+  .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, p => applyChange('categories', catFromRow, p))
+  .subscribe(status => {
+    if (status === 'SUBSCRIBED') setSync('מסונכרן ✓', true);
+    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSync('לא מחובר', false);
+  });
+
+/* refresh when returning to the app (phone was asleep etc.) */
+document.addEventListener('visibilitychange', () => { if (!document.hidden) loadAll(); });
+
+/* write helper: optimistic local update + push to DB */
+function push(promise) {
+  promise.then(({ error }) => {
+    if (error) { console.error(error); setSync('שגיאת שמירה', false); loadAll(); }
+  });
+}
+
+/* mutations */
+function cycleStatus(id) {
+  const prod = state.products.find(p => p.id === id);
+  if (!prod) return;
+  prod.status = STATUS_NEXT[prod.status];
+  render();
+  push(db.from('products').update({ status: prod.status, updated_at: new Date().toISOString() }).eq('id', id));
+}
+function addProduct(categoryId, name, note = '', isCustom = false, status = STATUS.IN_STOCK) {
+  const p = { id: uid(), categoryId, name: name.trim(), status, note, isCustom };
+  state.products.push(p);
+  render();
+  push(db.from('products').insert({ id: p.id, category_id: categoryId, name: p.name, status, note, is_custom: isCustom }));
+}
+function updateProduct(id, fields) {
+  const prod = state.products.find(p => p.id === id);
+  if (!prod) return;
+  Object.assign(prod, fields);
+  render();
+  push(db.from('products').update({ name: prod.name, category_id: prod.categoryId, note: prod.note, updated_at: new Date().toISOString() }).eq('id', id));
+}
+function deleteProduct(id) {
+  state.products = state.products.filter(p => p.id !== id);
+  render();
+  push(db.from('products').delete().eq('id', id));
+}
+function addCategory(name) {
+  const c = { id: uid(), name: name.trim(), sortOrder: state.categories.length };
+  state.categories.push(c);
+  render();
+  push(db.from('categories').insert({ id: c.id, name: c.name, sort_order: c.sortOrder }));
+}
+function updateCategory(id, name) {
+  const c = state.categories.find(c => c.id === id);
+  if (!c) return;
+  c.name = name.trim();
+  render();
+  push(db.from('categories').update({ name: c.name }).eq('id', id));
+}
+function deleteCategory(id) {
+  state.categories = state.categories.filter(c => c.id !== id);
+  state.products = state.products.filter(p => p.categoryId !== id);
+  render();
+  push(db.from('categories').delete().eq('id', id)); // products cascade in DB
+}
+
+/* =========================================================================
+   RENDERING
+   ========================================================================= */
+const appEl = document.getElementById('app');
+
+function esc(s) { return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
+
+function setView(v) {
+  view = v;
+  document.getElementById('navLists').classList.toggle('active', v === 'lists');
+  document.getElementById('navShop').classList.toggle('active', v === 'shop');
+  render();
+}
+
+function render() {
+  // shopping-list count badge in nav
+  const finishedCount = state.products.filter(p => p.status === STATUS.FINISHED).length;
+  const navCount = document.getElementById('navCount');
+  navCount.textContent = finishedCount;
+  navCount.style.display = finishedCount ? 'inline-block' : 'none';
+
+  appEl.innerHTML = view === 'lists' ? renderLists() : renderShop();
+}
+
+function productRow(p) {
+  return `
+    <div class="product ${p.status === STATUS.FINISHED ? 'is-finished' : ''}">
+      <button class="toggle ${p.status}" onclick="cycleStatus('${p.id}')">
+        <span class="main">
+          <span class="name">${esc(p.name)}</span>
+          ${p.note ? `<span class="note">${esc(p.note)}</span>` : ''}
+        </span>
+        <span class="badge">${STATUS_LABEL[p.status]}<span class="cyc">↻</span></span>
+      </button>
+      <button class="edit-btn" onclick="openProductEditor('${p.id}')">✏️</button>
+    </div>`;
+}
+
+// finished items first, then in-stock, ordered last
+const SORT_RANK = { finished: 0, in_stock: 1, ordered: 2 };
+function sortedForDisplay(list) {
+  return list.slice().sort((a, b) => SORT_RANK[a.status] - SORT_RANK[b.status]);
+}
+
+function renderLists() {
+  let html = `
+    <div class="quickadd">
+      <input id="quickInput" placeholder="הוספה מהירה לרשימת הקניות..." />
+      <button onclick="quickAdd()">+</button>
+    </div>`;
+
+  for (const cat of state.categories) {
+    const prods = state.products.filter(p => p.categoryId === cat.id);
+    const isCollapsed = collapsed.has(cat.id);
+    html += `
+      <div class="category ${isCollapsed ? 'collapsed' : ''}">
+        <div class="cat-head">
+          <span class="title" onclick="toggleCat('${cat.id}')">
+            <span class="chev">▼</span>${esc(cat.name)}
+            <span class="count">${prods.length}</span>
+          </span>
+          <button class="edit-btn" onclick="openCategoryEditor('${cat.id}')">✏️</button>
+        </div>
+        <div class="cat-body">
+          ${sortedForDisplay(prods).map(productRow).join('')}
+          <div class="addrow" onclick="openProductEditor(null,'${cat.id}')">+ הוסף מוצר</div>
+        </div>
+      </div>`;
+  }
+  html += `<button class="add-category" onclick="openCategoryEditor(null)">+ הוסף קטגוריה</button>`;
+  return html;
+}
+
+function renderShop() {
+  const finished = state.products.filter(p => p.status === STATUS.FINISHED);
+  const ordered = state.products.filter(p => p.status === STATUS.ORDERED);
+
+  if (!finished.length && !ordered.length) {
+    return `<div class="empty"><div class="big">✅</div><div>אין מה לקנות כרגע</div></div>`;
+  }
+
+  const catName = id => (state.categories.find(c => c.id === id) || {}).name || 'אחר';
+  let html = '';
+
+  if (finished.length) {
+    // group finished by category
+    const byCat = {};
+    finished.forEach(p => { (byCat[p.categoryId] ||= []).push(p); });
+    for (const cid in byCat) {
+      html += `<div class="shop-group-title">${esc(catName(cid))}</div>`;
+      html += byCat[cid].map(productRow).join('');
+    }
+    html += `<button class="order-all" onclick="markAllOrdered()">סמן הכל כ"הוזמן" (${finished.length})</button>`;
+  }
+
+  if (ordered.length) {
+    html += `<div class="shop-group-title">הוזמנו — ממתינים לאספקה</div>`;
+    html += ordered.map(productRow).join('');
+  }
+  return html;
+}
+
+/* =========================================================================
+   INTERACTIONS
+   ========================================================================= */
+function toggleCat(id) {
+  collapsed.has(id) ? collapsed.delete(id) : collapsed.add(id);
+  render();
+}
+
+function quickAdd() {
+  const input = document.getElementById('quickInput');
+  const name = input.value.trim();
+  if (!name) return;
+  // custom items: put in a "מהיר" category, created on demand, and mark finished (need to buy)
+  let cat = state.categories.find(c => c.name === 'מהיר / כללי');
+  if (!cat) {
+    cat = { id: uid(), name: 'מהיר / כללי', sortOrder: 99 };
+    state.categories.push(cat);
+    push(db.from('categories').insert({ id: cat.id, name: cat.name, sort_order: 99 }));
+  }
+  addProduct(cat.id, name, '', true, STATUS.FINISHED);
+  input.value = '';
+}
+
+function markAllOrdered() {
+  const ids = state.products.filter(p => p.status === STATUS.FINISHED).map(p => p.id);
+  state.products.forEach(p => { if (p.status === STATUS.FINISHED) p.status = STATUS.ORDERED; });
+  render();
+  push(db.from('products').update({ status: STATUS.ORDERED, updated_at: new Date().toISOString() }).in('id', ids));
+}
+
+/* ---- Modal helpers ---- */
+const overlay = document.getElementById('overlay');
+const sheet = document.getElementById('sheet');
+function closeSheet() { overlay.classList.remove('open'); sheet.innerHTML = ''; }
+overlay.addEventListener('click', e => { if (e.target === overlay) closeSheet(); });
+
+function openProductEditor(id, presetCategoryId) {
+  const editing = !!id;
+  const prod = editing ? state.products.find(p => p.id === id) : { name: '', note: '', categoryId: presetCategoryId };
+  const opts = state.categories.map(c =>
+    `<option value="${c.id}" ${c.id === prod.categoryId ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
+  sheet.innerHTML = `
+    <h3>${editing ? 'עריכת מוצר' : 'מוצר חדש'}</h3>
+    <label>שם</label>
+    <input id="pName" value="${esc(prod.name)}" placeholder="לדוגמה: חלב" />
+    <label>קטגוריה</label>
+    <select id="pCat">${opts}</select>
+    <label>הערה (מותג / גודל / העדפה)</label>
+    <input id="pNote" value="${esc(prod.note)}" placeholder="לדוגמה: תנובה 5%, אריזה גדולה" />
+    <div class="actions">
+      ${editing ? `<button class="btn-danger" onclick="confirmDeleteProduct('${id}')">מחיקה</button>` : ''}
+      <button class="btn-secondary" onclick="closeSheet()">ביטול</button>
+      <button class="btn-primary" onclick="saveProductEditor('${id || ''}')">שמירה</button>
+    </div>`;
+  overlay.classList.add('open');
+  setTimeout(() => document.getElementById('pName').focus(), 50);
+}
+function saveProductEditor(id) {
+  const name = document.getElementById('pName').value.trim();
+  const categoryId = document.getElementById('pCat').value;
+  const note = document.getElementById('pNote').value.trim();
+  if (!name) return;
+  if (id) updateProduct(id, { name, categoryId, note });
+  else addProduct(categoryId, name, note);
+  closeSheet();
+}
+function confirmDeleteProduct(id) { deleteProduct(id); closeSheet(); }
+
+function openCategoryEditor(id) {
+  const editing = !!id;
+  const cat = editing ? state.categories.find(c => c.id === id) : { name: '' };
+  sheet.innerHTML = `
+    <h3>${editing ? 'עריכת קטגוריה' : 'קטגוריה חדשה'}</h3>
+    <label>שם הקטגוריה</label>
+    <input id="cName" value="${esc(cat.name)}" placeholder="לדוגמה: מוצרי חלב" />
+    <div class="actions">
+      ${editing ? `<button class="btn-danger" onclick="confirmDeleteCategory('${id}')">מחיקה</button>` : ''}
+      <button class="btn-secondary" onclick="closeSheet()">ביטול</button>
+      <button class="btn-primary" onclick="saveCategoryEditor('${id || ''}')">שמירה</button>
+    </div>`;
+  overlay.classList.add('open');
+  setTimeout(() => document.getElementById('cName').focus(), 50);
+}
+function saveCategoryEditor(id) {
+  const name = document.getElementById('cName').value.trim();
+  if (!name) return;
+  if (id) updateCategory(id, name); else addCategory(name);
+  closeSheet();
+}
+function confirmDeleteCategory(id) {
+  if (confirm('למחוק את הקטגוריה וכל המוצרים שבה?')) { deleteCategory(id); closeSheet(); }
+}
+
+/* enter key on quick-add */
+document.addEventListener('keydown', e => {
+  if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'quickInput') quickAdd();
+});
+
+render();
+loadAll();
+</script>
+</body>
+</html>
