@@ -3,7 +3,7 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover" />
-<meta name="theme-color" content="#0b5d57" />
+<meta name="theme-color" content="#f7f1e6" />
 <meta name="mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
@@ -14,198 +14,259 @@
 <title>רשימת קניות</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;700;800&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Heebo:wght@400;500;600;700;800&display=swap" rel="stylesheet">
 <style>
   :root {
-    --bg: #eef1f5;
-    --card: #ffffff;
-    --text: #14202b;
-    --muted: #7b8794;
-    --border: #e8ecf1;
-    --accent: #0f766e;
-    --accent-dark: #0b5d57;
-    --accent-soft: #d5f0ec;
-    /* status colors */
-    --in-stock-bg: #eef1f4;   --in-stock-fg: #52606d;
-    --finished-bg: #ffe4de;   --finished-fg: #c0341d;
-    --ordered-bg:  #d6efe5;   --ordered-fg:  #0a7c52;
-    --shadow: 0 1px 2px rgba(20,32,43,.06), 0 2px 8px rgba(20,32,43,.04);
-    --shadow-lg: 0 8px 30px rgba(20,32,43,.12);
+    --bg: #f7f1e6; --card: #fffdf7; --ink: #2e2718; --muted: #97896e; --faint: #b3a68a;
+    --line: rgba(90,70,35,.09); --row: rgba(90,70,35,.07); --inbord: rgba(90,70,35,.14);
+    --acc: #6f8f1f; --accInk: #6f8f1f; --accDark: #4c6412; --accSoft: #eef2da;
+    --accBord: rgba(111,143,31,.4); --accShadow: rgba(111,143,31,.35);
+    --del: #b3543a; --fin: #c2502f; --stock: #ece4d3; --stockInk: #96896f;
+    --inputBg: #f7f1e6; --tabBg: rgba(255,253,247,.92); --scrim: rgba(46,39,24,.4);
+    --handle: rgba(90,70,35,.18); --toastBg: #2e2718; --toastInk: #fff7e8;
   }
   * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
   html, body { margin: 0; padding: 0; height: 100%; overflow: hidden; overscroll-behavior: none; }
   body {
-    font-family: "Heebo", -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
-    background: var(--bg);
-    color: var(--text);
+    font-family: "Heebo", system-ui, -apple-system, sans-serif;
+    background: var(--bg); color: var(--ink);
     -webkit-font-smoothing: antialiased;
     touch-action: manipulation;
-    /* app frame: fixed header + scrollable content + fixed tab bar */
     display: flex; flex-direction: column;
     height: 100vh; height: 100dvh;
   }
-  header {
-    flex-shrink: 0; z-index: 10;
-    background: linear-gradient(135deg, #12867c 0%, #0b5d57 100%);
-    color: #fff;
-    padding: calc(14px + env(safe-area-inset-top)) 18px 14px;
-    box-shadow: 0 2px 12px rgba(11,93,87,.25);
-    display: flex; align-items: center; justify-content: space-between;
-  }
-  header h1 { font-size: 20px; margin: 0; font-weight: 800; letter-spacing: -.3px; }
-  header .sync { font-size: 11px; opacity: .9; background: rgba(255,255,255,.18); padding: 4px 10px; border-radius: 20px; font-weight: 500; }
+  button, input { font-family: inherit; }
+  input::placeholder { color: var(--faint); }
 
+  /* ---- Header (fixed, per-tab) ---- */
+  .hdr {
+    flex-shrink: 0; z-index: 10;
+    width: 100%; max-width: 680px; margin: 0 auto;
+    padding: calc(14px + env(safe-area-inset-top)) 20px 10px;
+  }
+  .hdr .toprow { display: flex; align-items: baseline; justify-content: space-between; gap: 10px; }
+  .hdr h1 { margin: 0; font-size: 28px; font-weight: 800; letter-spacing: -0.3px; }
+  .hdr .meta { font-size: 12.5px; color: var(--muted); font-weight: 500; display: flex; align-items: center; gap: 6px; }
+  .hdr .hint { margin: 6px 0 0; font-size: 12.5px; color: var(--muted); }
+  .gear { border: none; background: none; color: var(--faint); font-size: 15px; padding: 2px 4px; cursor: pointer; line-height: 1; }
+
+  /* ---- Scrollable content ---- */
   main {
     flex: 1; min-height: 0; overflow-y: auto; -webkit-overflow-scrolling: touch;
     overscroll-behavior: contain;
-    width: 100%; max-width: 680px; margin: 0 auto; padding: 14px 14px 28px;
+    width: 100%; max-width: 680px; margin: 0 auto;
+  }
+  main.home { padding: 6px 16px 110px; }
+  main.buy { padding: 0 16px 175px; }
+
+  /* ---- Category cards (products tab) ---- */
+  .cat {
+    background: var(--card); border: 1px solid var(--line); border-radius: 18px;
+    margin-bottom: 12px; overflow: hidden; box-shadow: 0 1px 2px rgba(60,45,20,.04);
+  }
+  .cat-head { display: flex; align-items: center; gap: 10px; padding: 13px 16px; cursor: pointer; user-select: none; }
+  .cat-head .name { font-size: 15px; font-weight: 700; flex: 1; min-width: 0; }
+  .fin-badge {
+    min-width: 22px; height: 22px; padding: 0 7px; border-radius: 999px;
+    background: var(--fin); color: #fff; font-size: 12px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .dots { border: none; background: none; color: var(--faint); font-size: 17px; padding: 2px 4px; cursor: pointer; line-height: 1; }
+  .chev { display: block; color: var(--faint); transition: transform .18s; }
+  .cat.collapsed .chev { transform: rotate(-90deg); }
+
+  /* ---- Item rows ---- */
+  .prod { position: relative; overflow: hidden; border-top: 1px solid var(--row); touch-action: pan-y; }
+  .prod .del-btn {
+    position: absolute; top: 0; bottom: 0; left: 0; width: 88px;
+    border: none; background: var(--del); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+  }
+  .row-slide { position: relative; will-change: transform; }
+  .row-slide.snap { transition: transform .18s ease-out; }
+  .row-main {
+    display: flex; align-items: center; gap: 8px; padding: 10px 16px;
+    cursor: pointer; background: var(--card);
+  }
+  .row-main .txt { flex: 1; min-width: 0; }
+  .row-main .nm { font-size: 15px; font-weight: 500; line-height: 1.3; }
+  .row-main .note { font-size: 12px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .chip {
+    height: 26px; min-width: 54px; padding: 0 12px; border-radius: 999px;
+    font-size: 12px; font-weight: 700; flex-shrink: 0;
+    display: flex; align-items: center; justify-content: center;
+  }
+  .chip.in_stock { background: var(--stock); color: var(--stockInk); }
+  .chip.finished { background: var(--fin); color: #fff; }
+
+  .add-item {
+    width: 100%; border: none; background: none; color: var(--accInk);
+    font-weight: 700; font-size: 13px; padding: 10px; cursor: pointer;
+    border-top: 1px solid var(--row);
+  }
+  .add-cat {
+    width: 100%; border: 2px dashed var(--accBord); background: none; color: var(--accInk);
+    font-weight: 700; font-size: 14px; padding: 13px; border-radius: 16px; cursor: pointer; margin-top: 4px;
   }
 
-  /* Quick add */
-  .quickadd {
-    display: flex; gap: 8px; margin-bottom: 16px;
-  }
+  /* ---- Buy tab ---- */
+  .quickadd { display: flex; gap: 8px; margin-top: 12px; }
   .quickadd input {
-    flex: 1; padding: 13px 16px; font-size: 16px; font-family: inherit;
-    border: 1px solid var(--border); border-radius: 14px; background: var(--card);
-    box-shadow: var(--shadow); outline: none;
+    flex: 1; min-width: 0; border: 1px solid var(--inbord); background: var(--card);
+    border-radius: 12px; padding: 10px 14px; font-size: 16px; color: var(--ink); outline: none;
   }
-  .quickadd input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px var(--accent-soft); }
   .quickadd button {
-    width: 52px; flex-shrink: 0; font-size: 26px; line-height: 1;
-    border: none; border-radius: 14px; background: var(--accent); color: #fff; font-weight: 700;
-    box-shadow: var(--shadow); transition: transform .08s;
+    border: none; background: var(--acc); color: #fff; font-size: 14px; font-weight: 700;
+    border-radius: 12px; padding: 0 16px; cursor: pointer;
   }
-  .quickadd button:active { transform: scale(.92); }
+  .buy-group-title { font-size: 12px; font-weight: 700; color: var(--muted); letter-spacing: .3px; margin: 16px 4px 6px; }
+  .buy-card { background: var(--card); border: 1px solid var(--line); border-radius: 16px; overflow: hidden; }
+  .buy-row { display: flex; align-items: center; gap: 8px; padding: 11px 16px; border-top: 1px solid var(--row); cursor: pointer; }
+  .buy-card .buy-row:first-child { border-top: none; }
+  .save-pill {
+    border: none; background: var(--accSoft); color: var(--accDark);
+    font-size: 11.5px; font-weight: 700; padding: 5px 10px; border-radius: 99px; cursor: pointer; flex-shrink: 0;
+  }
+  .buy-hint { font-size: 11.5px; color: var(--muted); margin: 14px 4px 0; }
+  .empty-buy { text-align: center; padding: 60px 20px; color: var(--muted); }
+  .empty-buy .circ {
+    width: 56px; height: 56px; border-radius: 999px; background: var(--accSoft); color: var(--accInk);
+    display: flex; align-items: center; justify-content: center; margin: 0 auto 14px;
+    font-size: 26px; font-weight: 800;
+  }
+  .empty-buy .t1 { font-size: 16px; font-weight: 600; color: var(--ink); }
+  .empty-buy .t2 { font-size: 13px; margin-top: 4px; }
 
-  /* Category */
-  .category { background: var(--card); border-radius: 18px; margin-bottom: 14px; box-shadow: var(--shadow); overflow: hidden; }
-  .cat-head {
-    display: flex; align-items: center; justify-content: space-between;
-    padding: 15px 16px; cursor: pointer; user-select: none;
+  .cta {
+    position: fixed; bottom: calc(74px + env(safe-area-inset-bottom));
+    left: 50%; transform: translateX(-50%); width: min(100% - 32px, 648px);
+    border: none; background: var(--acc); color: #fff; font-size: 16px; font-weight: 700;
+    border-radius: 16px; padding: 15px; cursor: pointer;
+    box-shadow: 0 6px 18px var(--accShadow); z-index: 15;
+    transition: transform .08s;
   }
-  .cat-head .title { display: flex; align-items: center; gap: 10px; font-size: 17px; font-weight: 700; }
-  .cat-head .count { background: var(--accent-soft); color: var(--accent-dark); font-size: 12px; font-weight: 700; border-radius: 20px; padding: 2px 9px; min-width: 22px; text-align: center; }
-  .chev { transition: transform .2s; color: var(--muted); font-size: 13px; }
-  .category.collapsed .chev { transform: rotate(-90deg); }
-  .category.collapsed .cat-body { display: none; }
+  .cta:active { transform: translateX(-50%) scale(.98); }
 
-  .product {
-    position: relative; overflow: hidden;
-    border-top: 1px solid var(--border);
-    touch-action: pan-y; /* we handle horizontal swipes ourselves */
-  }
-  .product.removing { transition: height .18s ease, opacity .18s ease; }
-  .swipe-del {
-    position: absolute; inset: 0; display: flex; align-items: center; justify-content: space-between;
-    padding: 0 22px; background: #e5484d; color: #fff; font-size: 22px; opacity: 0;
-  }
-  .swipe-del.armed { background: #c0341d; }
-  .row-inner {
-    position: relative; display: flex; align-items: center; gap: 8px;
-    padding: 9px 12px 9px 8px; background: var(--card);
-    will-change: transform;
-  }
-  .row-inner.snap { transition: transform .18s ease; }
-  .product.is-finished .row-inner { background: linear-gradient(90deg, rgba(255,228,222,.5), var(--card)); }
-  /* the tap target that cycles status */
-  .toggle {
-    flex: 1; min-width: 0; display: flex; align-items: center; gap: 12px;
-    background: var(--in-stock-bg); border: 1.5px solid transparent;
-    border-radius: 12px; padding: 12px 14px; min-height: 52px; cursor: pointer; text-align: start;
-    transition: transform .08s, box-shadow .15s, background .15s;
-  }
-  .toggle:active { transform: scale(.98); }
-  .toggle.in_stock { background: var(--in-stock-bg); }
-  .toggle.finished { background: var(--finished-bg); border-color: rgba(192,52,29,.25); }
-  .toggle.ordered  { background: var(--ordered-bg); }
-  .toggle .main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
-  .toggle .name { font-size: 16px; font-weight: 500; }
-  .toggle.finished .name { font-weight: 700; }
-  .toggle .note { font-size: 13px; color: var(--muted); margin-top: 1px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-  .badge {
-    flex-shrink: 0; display: inline-flex; align-items: center; gap: 5px;
-    min-width: 76px; justify-content: center;
-    padding: 7px 10px; border-radius: 9px; font-size: 14px; font-weight: 700;
-    background: rgba(255,255,255,.7);
-  }
-  .badge .cyc { font-size: 12px; opacity: .65; }
-  .toggle.in_stock .badge { color: var(--in-stock-fg); }
-  .toggle.finished .badge { color: var(--finished-fg); }
-  .toggle.ordered  .badge { color: var(--ordered-fg); }
-  .edit-btn { flex-shrink: 0; background: none; border: none; color: #aeb6bf; font-size: 18px; padding: 12px 8px; min-width: 44px; min-height: 44px; cursor: pointer; }
-  .edit-btn:active { color: var(--muted); }
-
-  .addrow { padding: 13px 16px; border-top: 1px dashed var(--border); color: var(--accent); font-weight: 600; font-size: 15px; cursor: pointer; }
-  .addrow:active { background: var(--accent-soft); }
-
-  .add-category { display: block; width: 100%; padding: 15px; background: transparent; border: 1.5px dashed #cfd6de; border-radius: 16px; color: var(--muted); font-size: 15px; font-weight: 600; cursor: pointer; }
-  .add-category:active { background: #fff; }
-
-  /* Shopping list view */
-  .shop-group-title { font-size: 13px; color: var(--muted); font-weight: 800; margin: 18px 6px 8px; text-transform: none; letter-spacing: .2px; }
-  .empty { text-align: center; color: var(--muted); padding: 64px 16px; }
-  .empty .big { font-size: 52px; margin-bottom: 12px; }
-  .order-all { position: sticky; bottom: 8px; width: 100%; padding: 15px; margin-top: 18px; background: var(--accent); color: #fff; border: none; border-radius: 16px; font-size: 16px; font-weight: 700; box-shadow: var(--shadow-lg); transition: transform .08s; cursor: pointer; }
-  .order-all:active { transform: scale(.98); }
-
-  /* Bottom nav — part of the app frame, always visible */
+  /* ---- Tab bar ---- */
   nav {
     flex-shrink: 0; z-index: 20;
-    background: rgba(255,255,255,.96); backdrop-filter: blur(10px);
-    border-top: 1px solid var(--border);
-    display: flex; gap: 8px; padding: 8px 12px calc(8px + env(safe-area-inset-bottom));
+    background: var(--tabBg); backdrop-filter: blur(14px); -webkit-backdrop-filter: blur(14px);
+    border-top: 1px solid var(--line);
+    display: flex; padding: 10px 8px calc(10px + env(safe-area-inset-bottom));
   }
-  nav button {
-    flex: 1; position: relative; background: transparent; border: none;
-    min-height: 52px; padding: 8px;
-    color: var(--muted); font-size: 14px; font-weight: 600; font-family: inherit;
-    display: flex; align-items: center; justify-content: center; gap: 8px;
-    border-radius: 14px; cursor: pointer; transition: background .15s, color .15s, transform .08s;
+  nav .tab {
+    flex: 1; border: none; background: none; cursor: pointer;
+    display: flex; flex-direction: column; align-items: center; padding: 2px 0;
+    color: var(--faint);
   }
-  nav button:active { transform: scale(.96); }
-  nav button .ico { font-size: 22px; }
-  nav button.active { color: #fff; background: var(--accent); box-shadow: 0 4px 12px rgba(15,118,110,.3); }
-  nav .nav-count { font-size: 11px; font-weight: 700; background: var(--finished-fg); color:#fff; border-radius: 10px; padding: 1px 7px; }
-  nav button.active .nav-count { background: rgba(255,255,255,.25); }
+  nav .tab.active { color: var(--accInk); }
+  nav .tab svg { display: block; }
+  nav .tab .lbl { font-size: 10.5px; font-weight: 700; margin-top: 3px; }
+  nav .tab .icowrap { position: relative; }
+  nav .tab .nav-count {
+    position: absolute; top: -5px; left: -11px; min-width: 17px; height: 17px; padding: 0 4px;
+    border-radius: 99px; background: var(--fin); color: #fff; font-size: 10.5px; font-weight: 700;
+    display: flex; align-items: center; justify-content: center;
+  }
 
-  /* Modal */
-  .overlay { position: fixed; inset: 0; background: rgba(0,0,0,.4); z-index: 50; display: none; align-items: flex-end; }
+  /* ---- Bottom sheets ---- */
+  @keyframes omFade { from { opacity: 0; } to { opacity: 1; } }
+  @keyframes omSheetUp { from { transform: translateY(48px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+  .overlay { position: fixed; inset: 0; background: var(--scrim); z-index: 50; display: none; align-items: flex-end; animation: omFade .18s; }
   .overlay.open { display: flex; }
-  .sheet { background: var(--card); width: 100%; max-width: 680px; margin: 0 auto; border-radius: 18px 18px 0 0; padding: 18px 18px calc(18px + env(safe-area-inset-bottom)); }
-  .sheet h3 { margin: 0 0 14px; font-size: 18px; }
-  .sheet label { display: block; font-size: 13px; color: var(--muted); margin: 12px 0 4px; }
-  .sheet input, .sheet select { width: 100%; padding: 12px; font-size: 16px; border: 1px solid var(--border); border-radius: 10px; }
-  .sheet .actions { display: flex; gap: 10px; margin-top: 18px; }
-  .sheet .actions button { flex: 1; padding: 13px; font-size: 16px; font-weight: 700; border: none; border-radius: 12px; }
-  .btn-primary { background: var(--accent); color: #fff; }
-  .btn-secondary { background: var(--in-stock-bg); color: var(--text); }
-  .btn-danger { background: var(--finished-bg); color: var(--finished-fg); }
+  .sheet {
+    background: var(--card); width: 100%; max-width: 680px; margin: 0 auto;
+    border-radius: 24px 24px 0 0; padding: 18px 20px calc(28px + env(safe-area-inset-bottom));
+    animation: omSheetUp .22s ease-out; box-shadow: 0 -8px 30px rgba(0,0,0,.22);
+  }
+  .sheet .handle { width: 36px; height: 4px; border-radius: 99px; background: var(--handle); margin: 0 auto 14px; }
+  .sheet .title { font-size: 17px; font-weight: 800; margin-bottom: 14px; }
+  .sheet input[type=text] {
+    width: 100%; border: 1px solid var(--inbord); background: var(--inputBg);
+    border-radius: 12px; padding: 11px 14px; font-size: 16px; color: var(--ink);
+    outline: none; margin-bottom: 10px;
+  }
+  .seg { display: flex; gap: 8px; margin: 4px 0 14px; }
+  .seg button {
+    flex: 1; border: 1.5px solid var(--inbord); background: var(--card); color: var(--stockInk);
+    border-radius: 12px; padding: 10px 0; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  }
+  .seg button.sel-stock { background: var(--stock); color: var(--ink); border-color: var(--faint); }
+  .seg button.sel-fin { background: var(--fin); color: #fff; border-color: var(--fin); }
+  .sheet .save {
+    width: 100%; border: none; background: var(--acc); color: #fff;
+    font-size: 15.5px; font-weight: 700; border-radius: 14px; padding: 13px; cursor: pointer;
+  }
+  .sheet .danger {
+    width: 100%; border: none; background: none; color: var(--del);
+    font-size: 13.5px; font-weight: 700; padding: 12px 0 0; cursor: pointer;
+  }
+  .cat-pills { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 6px; }
+  .cat-pills button {
+    border: 1.5px solid var(--accBord); background: var(--card); color: var(--accDark);
+    border-radius: 99px; padding: 8px 14px; font-size: 13.5px; font-weight: 700; cursor: pointer;
+  }
+  .set-label { font-size: 12px; font-weight: 800; color: var(--muted); letter-spacing: .4px; margin: 12px 0 8px; }
+  .swatches { display: flex; gap: 10px; }
+  .swatch { width: 32px; height: 32px; border-radius: 999px; border: 2.5px solid transparent; cursor: pointer; padding: 0; }
+  .swatch.sel { border-color: var(--ink); }
+
+  /* ---- Toast ---- */
+  .toast {
+    position: fixed; bottom: calc(82px + env(safe-area-inset-bottom)); right: 50%; transform: translateX(50%);
+    background: var(--toastBg); color: var(--toastInk);
+    font-size: 13px; font-weight: 600; padding: 9px 18px; border-radius: 99px;
+    z-index: 60; animation: omFade .2s; white-space: nowrap; pointer-events: none;
+  }
 </style>
 </head>
 <body>
-<header>
-  <h1>🛒 רשימת קניות</h1>
-  <span class="sync" id="syncStatus">מקומי</span>
-</header>
-
-<main id="app"></main>
+<div class="hdr" id="hdr"></div>
+<main id="app" class="home"></main>
 
 <nav>
-  <button id="navLists" class="active" onclick="setView('lists')">
-    <span class="ico">📋</span><span>רשימות</span>
+  <button class="tab active" id="navHome" onclick="setView('home')">
+    <svg width="22" height="22" viewBox="0 0 22 22"><rect x="2.5" y="2.5" width="7.5" height="7.5" rx="2.4" fill="currentColor"/><rect x="12" y="2.5" width="7.5" height="7.5" rx="2.4" fill="currentColor"/><rect x="2.5" y="12" width="7.5" height="7.5" rx="2.4" fill="currentColor"/><rect x="12" y="12" width="7.5" height="7.5" rx="2.4" fill="currentColor"/></svg>
+    <span class="lbl">מוצרים</span>
   </button>
-  <button id="navShop" onclick="setView('shop')">
-    <span class="ico">🛍️</span><span>לקנות</span><span class="nav-count" id="navCount" style="display:none"></span>
+  <button class="tab" id="navBuy" onclick="setView('buy')">
+    <span class="icowrap">
+      <svg width="22" height="22" viewBox="0 0 22 22"><circle cx="11" cy="11" r="8.5" stroke="currentColor" stroke-width="2.2" fill="none"/><path d="M7.5 11.2L10 13.7L14.7 8.6" stroke="currentColor" stroke-width="2.2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
+      <span class="nav-count" id="navCount" style="display:none"></span>
+    </span>
+    <span class="lbl">לקנות</span>
   </button>
 </nav>
 
 <div class="overlay" id="overlay">
   <div class="sheet" id="sheet"></div>
 </div>
+<div id="toastHost"></div>
 
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <script>
+/* =========================================================================
+   THEME — 3 palettes + custom "finished" color + notes visibility
+   ========================================================================= */
+const PALETTES = {
+  'חם וביתי': { bg:'#f7f1e6', card:'#fffdf7', ink:'#2e2718', muted:'#97896e', faint:'#b3a68a', line:'rgba(90,70,35,0.09)', row:'rgba(90,70,35,0.07)', inbord:'rgba(90,70,35,0.14)', acc:'#6f8f1f', accInk:'#6f8f1f', accDark:'#4c6412', accSoft:'#eef2da', accBord:'rgba(111,143,31,0.4)', accShadow:'rgba(111,143,31,0.35)', del:'#b3543a', fin:'#c2502f', stock:'#ece4d3', stockInk:'#96896f', inputBg:'#f7f1e6', tabBg:'rgba(255,253,247,0.92)', scrim:'rgba(46,39,24,0.4)', handle:'rgba(90,70,35,0.18)', toastBg:'#2e2718', toastInk:'#fff7e8' },
+  'קריר': { bg:'#eef1f3', card:'#fdfeff', ink:'#22303a', muted:'#7e909b', faint:'#a7b7c0', line:'rgba(30,60,80,0.09)', row:'rgba(30,60,80,0.07)', inbord:'rgba(30,60,80,0.15)', acc:'#146e87', accInk:'#146e87', accDark:'#0d4f62', accSoft:'#ddedf2', accBord:'rgba(20,110,135,0.4)', accShadow:'rgba(20,110,135,0.3)', del:'#b04a55', fin:'#c9484f', stock:'#e2e8ea', stockInk:'#7e909b', inputBg:'#eef1f3', tabBg:'rgba(253,254,255,0.92)', scrim:'rgba(20,35,45,0.45)', handle:'rgba(30,60,80,0.18)', toastBg:'#22303a', toastInk:'#eef7fa' },
+  'לילה': { bg:'#1b1813', card:'#26221a', ink:'#f0e8d6', muted:'#9c9078', faint:'#6f6754', line:'rgba(240,230,200,0.09)', row:'rgba(240,230,200,0.06)', inbord:'rgba(240,230,200,0.16)', acc:'#6f8f1f', accInk:'#aecb5f', accDark:'#c4da85', accSoft:'#333a1e', accBord:'rgba(174,203,95,0.4)', accShadow:'rgba(0,0,0,0.5)', del:'#c05a3f', fin:'#d4603f', stock:'#332e22', stockInk:'#9c9078', inputBg:'#1b1813', tabBg:'rgba(38,34,26,0.92)', scrim:'rgba(0,0,0,0.55)', handle:'rgba(240,230,200,0.2)', toastBg:'#f0e8d6', toastInk:'#26221a' }
+};
+const FIN_COLORS = ['#c2502f', '#b3342e', '#96548f', '#b07d10'];
+
+let prefs = { palette: 'חם וביתי', fin: '', showNotes: true };
+try { Object.assign(prefs, JSON.parse(localStorage.getItem('grocery-prefs') || '{}')); } catch (e) {}
+
+function applyTheme() {
+  const T = PALETTES[prefs.palette] || PALETTES['חם וביתי'];
+  const root = document.documentElement;
+  for (const [k, v] of Object.entries(T)) root.style.setProperty('--' + k, v);
+  if (prefs.fin) root.style.setProperty('--fin', prefs.fin);
+  document.querySelector('meta[name=theme-color]').setAttribute('content', T.bg);
+}
+function savePrefs() { localStorage.setItem('grocery-prefs', JSON.stringify(prefs)); applyTheme(); }
+applyTheme();
+
 /* =========================================================================
    DATA LAYER — Supabase (shared cloud DB + realtime sync between phones)
    ========================================================================= */
@@ -213,38 +274,47 @@ const SUPABASE_URL = 'https://yzoyctkyesrzgqijgpfw.supabase.co';
 const SUPABASE_KEY = 'sb_publishable_8FFPLUpRMGJq05561Lcj-Q_kGzLg1rJ';
 const db = supabase.createClient(SUPABASE_URL, SUPABASE_KEY);
 
-const STATUS = { IN_STOCK: 'in_stock', FINISHED: 'finished', ORDERED: 'ordered' };
-const STATUS_NEXT = { in_stock: 'finished', finished: 'ordered', ordered: 'in_stock' };
-const STATUS_LABEL = { in_stock: 'יש', finished: 'נגמר', ordered: 'הוזמן' };
+/* Two-state model: in_stock ↔ finished (the old "ordered" state was removed) */
+const STATUS = { IN_STOCK: 'in_stock', FINISHED: 'finished' };
+const QUICK_CAT_NAME = 'מהיר / כללי'; // hidden container category for one-off (quick) items
 
 let state = { categories: [], products: [] };
-let view = 'lists';
+let view = 'home';
 const collapsed = new Set();
+let syncText = 'טוען…';
 
 function uid() { return crypto.randomUUID(); }
+const isQuick = p => !!p.isCustom;
+const quickCat = () => state.categories.find(c => c.name === QUICK_CAT_NAME);
+const visibleCats = () => state.categories.filter(c => c.name !== QUICK_CAT_NAME);
 
-const syncEl = document.getElementById('syncStatus');
-function setSync(text, ok) {
-  syncEl.textContent = text;
-  syncEl.style.background = ok ? 'rgba(255,255,255,.18)' : 'rgba(192,52,29,.85)';
-}
+function setSync(text) { syncText = text; renderHeader(); }
 
 /* row mappers: DB snake_case <-> app camelCase */
 const prodFromRow = r => ({ id: r.id, categoryId: r.category_id, name: r.name, status: r.status, note: r.note || '', isCustom: r.is_custom });
 const catFromRow = r => ({ id: r.id, name: r.name, sortOrder: r.sort_order || 0 });
 
 async function loadAll() {
-  setSync('טוען…', true);
+  setSync('טוען…');
   const [cats, prods] = await Promise.all([
     db.from('categories').select('*').order('sort_order').order('created_at'),
     db.from('products').select('*').order('name'),
   ]);
-  if (cats.error || prods.error) { setSync('שגיאת חיבור', false); console.error(cats.error || prods.error); return; }
+  if (cats.error || prods.error) { setSync('שגיאת חיבור'); console.error(cats.error || prods.error); return; }
   state.categories = cats.data.map(catFromRow);
   state.products = prods.data.map(prodFromRow);
   if (!state.categories.length) { await seedRemote(); return; }
-  setSync('מסונכרן ✓', true);
+  migrateOrdered();
+  setSync('מסונכרן · 2 טלפונים');
   render();
+}
+
+/* one-time migration: the removed "ordered" status becomes in_stock */
+function migrateOrdered() {
+  const ids = state.products.filter(p => p.status === 'ordered').map(p => p.id);
+  if (!ids.length) return;
+  state.products.forEach(p => { if (p.status === 'ordered') p.status = STATUS.IN_STOCK; });
+  push(db.from('products').update({ status: STATUS.IN_STOCK, updated_at: new Date().toISOString() }).in('id', ids));
 }
 
 async function seedRemote() {
@@ -281,8 +351,8 @@ db.channel('grocery-sync')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, p => applyChange('products', prodFromRow, p))
   .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, p => applyChange('categories', catFromRow, p))
   .subscribe(status => {
-    if (status === 'SUBSCRIBED') setSync('מסונכרן ✓', true);
-    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSync('לא מחובר', false);
+    if (status === 'SUBSCRIBED') setSync('מסונכרן · 2 טלפונים');
+    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSync('לא מחובר');
   });
 
 /* refresh when returning to the app (phone was asleep etc.) */
@@ -291,15 +361,21 @@ document.addEventListener('visibilitychange', () => { if (!document.hidden) load
 /* write helper: optimistic local update + push to DB */
 function push(promise) {
   promise.then(({ error }) => {
-    if (error) { console.error(error); setSync('שגיאת שמירה', false); loadAll(); }
+    if (error) { console.error(error); setSync('שגיאת שמירה'); loadAll(); }
   });
 }
 
 /* mutations */
-function cycleStatus(id) {
+function toggleStatus(id) {
   const prod = state.products.find(p => p.id === id);
   if (!prod) return;
-  prod.status = STATUS_NEXT[prod.status];
+  if (isQuick(prod) && prod.status === STATUS.FINISHED) {
+    // a bought one-off item has no "in stock" life — it is removed
+    deleteProduct(id, false);
+    toast('הפריט החד־פעמי נקנה והוסר');
+    return;
+  }
+  prod.status = prod.status === STATUS.FINISHED ? STATUS.IN_STOCK : STATUS.FINISHED;
   render();
   push(db.from('products').update({ status: prod.status, updated_at: new Date().toISOString() }).eq('id', id));
 }
@@ -314,12 +390,16 @@ function updateProduct(id, fields) {
   if (!prod) return;
   Object.assign(prod, fields);
   render();
-  push(db.from('products').update({ name: prod.name, category_id: prod.categoryId, note: prod.note, updated_at: new Date().toISOString() }).eq('id', id));
+  push(db.from('products').update({
+    name: prod.name, category_id: prod.categoryId, note: prod.note,
+    status: prod.status, is_custom: prod.isCustom, updated_at: new Date().toISOString(),
+  }).eq('id', id));
 }
-function deleteProduct(id) {
+function deleteProduct(id, withToast = true) {
   state.products = state.products.filter(p => p.id !== id);
   render();
   push(db.from('products').delete().eq('id', id));
+  if (withToast) toast('המוצר נמחק');
 }
 function addCategory(name) {
   const c = { id: uid(), name: name.trim(), sortOrder: state.categories.length };
@@ -339,110 +419,141 @@ function deleteCategory(id) {
   state.products = state.products.filter(p => p.categoryId !== id);
   render();
   push(db.from('categories').delete().eq('id', id)); // products cascade in DB
+  toast('הקטגוריה נמחקה');
 }
 
 /* =========================================================================
    RENDERING
    ========================================================================= */
 const appEl = document.getElementById('app');
+const hdrEl = document.getElementById('hdr');
 
 function esc(s) { return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
 function setView(v) {
   view = v;
-  document.getElementById('navLists').classList.toggle('active', v === 'lists');
-  document.getElementById('navShop').classList.toggle('active', v === 'shop');
+  swipeOpenId = null;
+  document.getElementById('navHome').classList.toggle('active', v === 'home');
+  document.getElementById('navBuy').classList.toggle('active', v === 'buy');
   render();
+  appEl.scrollTop = 0;
 }
+
+function buyList() { return state.products.filter(p => p.status === STATUS.FINISHED); }
 
 function render() {
-  // shopping-list count badge in nav
-  const finishedCount = state.products.filter(p => p.status === STATUS.FINISHED).length;
+  const n = buyList().length;
   const navCount = document.getElementById('navCount');
-  navCount.textContent = finishedCount;
-  navCount.style.display = finishedCount ? 'inline-block' : 'none';
-
-  appEl.innerHTML = view === 'lists' ? renderLists() : renderShop();
+  navCount.textContent = n;
+  navCount.style.display = n ? 'flex' : 'none';
+  renderHeader();
+  appEl.className = view;
+  appEl.innerHTML = view === 'home' ? renderHome() : renderBuy();
 }
 
+function renderHeader() {
+  if (view === 'home') {
+    hdrEl.innerHTML = `
+      <div class="toprow">
+        <h1>רשימת קניות</h1>
+        <span class="meta">${esc(syncText)}<button class="gear" onclick="openSettings()" aria-label="עיצוב">⚙</button></span>
+      </div>
+      <p class="hint">הקשה מחליפה מצב: יש ↔ נגמר · החלקה שמאלה — מחיקה</p>`;
+  } else {
+    const n = buyList().length;
+    hdrEl.innerHTML = `
+      <div class="toprow" style="justify-content:flex-start; gap:10px;">
+        <h1>לקנות</h1>
+        ${n ? `<span class="meta" style="font-size:14px;">${n} פריטים</span>` : ''}
+      </div>
+      <div class="quickadd">
+        <input id="quickInput" placeholder="הוספה מהירה — פריט חד־פעמי" autocomplete="off" />
+        <button onclick="quickAdd()">הוספה</button>
+      </div>`;
+  }
+}
+
+function chipHtml(p) { return `<div class="chip ${p.status}">${p.status === STATUS.FINISHED ? 'נגמר' : 'יש'}</div>`; }
+function noteHtml(p) { return prefs.showNotes && p.note ? `<div class="note">${esc(p.note)}</div>` : ''; }
+
 function productRow(p) {
+  const open = swipeOpenId === p.id;
   return `
-    <div class="product ${p.status === STATUS.FINISHED ? 'is-finished' : ''}" data-id="${p.id}">
-      <div class="swipe-del"><span>🗑️</span><span>🗑️</span></div>
-      <div class="row-inner">
-        <button class="toggle ${p.status}" onclick="cycleStatus('${p.id}')">
-          <span class="main">
-            <span class="name">${esc(p.name)}</span>
-            ${p.note ? `<span class="note">${esc(p.note)}</span>` : ''}
-          </span>
-          <span class="badge">${STATUS_LABEL[p.status]}<span class="cyc">↻</span></span>
-        </button>
-        <button class="edit-btn" onclick="openProductEditor('${p.id}')">✏️</button>
+    <div class="prod" data-id="${p.id}">
+      <button class="del-btn" onclick="deleteProduct('${p.id}')">מחיקה</button>
+      <div class="row-slide snap" style="transform:translateX(${open ? -88 : 0}px)">
+        <div class="row-main" onclick="rowTap('${p.id}')">
+          <div class="txt">
+            <div class="nm">${esc(p.name)}</div>
+            ${noteHtml(p)}
+          </div>
+          <button class="dots" onclick="event.stopPropagation(); openItemSheet('${p.id}')">⋯</button>
+          ${chipHtml(p)}
+        </div>
       </div>
     </div>`;
 }
 
-// finished items first, then in-stock, ordered last
-const SORT_RANK = { finished: 0, in_stock: 1, ordered: 2 };
-function sortedForDisplay(list) {
-  return list.slice().sort((a, b) => SORT_RANK[a.status] - SORT_RANK[b.status]);
-}
-
-function renderLists() {
-  let html = `
-    <div class="quickadd">
-      <input id="quickInput" placeholder="הוספה מהירה לרשימת הקניות..." />
-      <button onclick="quickAdd()">+</button>
-    </div>`;
-
-  for (const cat of state.categories) {
+function renderHome() {
+  let html = '';
+  for (const cat of visibleCats()) {
     const prods = state.products.filter(p => p.categoryId === cat.id);
+    const finCount = prods.filter(p => p.status === STATUS.FINISHED).length;
     const isCollapsed = collapsed.has(cat.id);
     html += `
-      <div class="category ${isCollapsed ? 'collapsed' : ''}">
-        <div class="cat-head">
-          <span class="title" onclick="toggleCat('${cat.id}')">
-            <span class="chev">▼</span>${esc(cat.name)}
-            <span class="count">${prods.length}</span>
-          </span>
-          <button class="edit-btn" onclick="openCategoryEditor('${cat.id}')">✏️</button>
+      <div class="cat ${isCollapsed ? 'collapsed' : ''}">
+        <div class="cat-head" onclick="toggleCat('${cat.id}')">
+          <span class="name">${esc(cat.name)}</span>
+          ${finCount ? `<span class="fin-badge">${finCount}</span>` : ''}
+          <button class="dots" onclick="event.stopPropagation(); openCatSheet('${cat.id}')">⋯</button>
+          <svg class="chev" width="12" height="12" viewBox="0 0 12 12"><path d="M2 4.5L6 8.5L10 4.5" stroke="currentColor" stroke-width="2" fill="none" stroke-linecap="round" stroke-linejoin="round"/></svg>
         </div>
-        <div class="cat-body">
-          ${sortedForDisplay(prods).map(productRow).join('')}
-          <div class="addrow" onclick="openProductEditor(null,'${cat.id}')">+ הוסף מוצר</div>
-        </div>
+        ${isCollapsed ? '' : `
+          ${prods.map(productRow).join('')}
+          <button class="add-item" onclick="openNewItemSheet('${cat.id}')">+ מוצר</button>`}
       </div>`;
   }
-  html += `<button class="add-category" onclick="openCategoryEditor(null)">+ הוסף קטגוריה</button>`;
+  html += `<button class="add-cat" onclick="openNewCatSheet()">+ קטגוריה חדשה</button>`;
   return html;
 }
 
-function renderShop() {
-  const finished = state.products.filter(p => p.status === STATUS.FINISHED);
-  const ordered = state.products.filter(p => p.status === STATUS.ORDERED);
+function buyRow(p) {
+  return `
+    <div class="buy-row" onclick="toggleStatus('${p.id}')">
+      <div class="txt" style="flex:1; min-width:0;">
+        <div class="nm" style="font-size:15px; font-weight:500; line-height:1.3;">${esc(p.name)}</div>
+        ${noteHtml(p)}
+      </div>
+      ${isQuick(p) ? `<button class="save-pill" onclick="event.stopPropagation(); openSaveQuickSheet('${p.id}')">שמירה לקטגוריה</button>` : ''}
+      ${chipHtml(p)}
+    </div>`;
+}
 
-  if (!finished.length && !ordered.length) {
-    return `<div class="empty"><div class="big">✅</div><div>אין מה לקנות כרגע</div></div>`;
+function renderBuy() {
+  const fin = buyList();
+  if (!fin.length) {
+    return `
+      <div class="empty-buy">
+        <div class="circ">✓</div>
+        <div class="t1">הכל במלאי</div>
+        <div class="t2">כשמשהו נגמר — מקישים עליו במסך המוצרים</div>
+      </div>`;
   }
-
-  const catName = id => (state.categories.find(c => c.id === id) || {}).name || 'אחר';
-  let html = '';
-
-  if (finished.length) {
-    // group finished by category
-    const byCat = {};
-    finished.forEach(p => { (byCat[p.categoryId] ||= []).push(p); });
-    for (const cid in byCat) {
-      html += `<div class="shop-group-title">${esc(catName(cid))}</div>`;
-      html += byCat[cid].map(productRow).join('');
-    }
-    html += `<button class="order-all" onclick="markAllOrdered()">סמן הכל כ"הוזמן" (${finished.length})</button>`;
+  const groups = [];
+  for (const cat of visibleCats()) {
+    const items = fin.filter(p => p.categoryId === cat.id && !isQuick(p));
+    if (items.length) groups.push({ name: cat.name, items });
   }
+  const orphans = fin.filter(p => !isQuick(p) && !visibleCats().some(c => c.id === p.categoryId));
+  if (orphans.length) groups.push({ name: 'אחר', items: orphans });
+  const quick = fin.filter(isQuick);
+  if (quick.length) groups.push({ name: 'חד־פעמי', items: quick });
 
-  if (ordered.length) {
-    html += `<div class="shop-group-title">הוזמנו — ממתינים לאספקה</div>`;
-    html += ordered.map(productRow).join('');
-  }
+  let html = groups.map(g => `
+    <div class="buy-group-title">${esc(g.name)}</div>
+    <div class="buy-card">${g.items.map(buyRow).join('')}</div>`).join('');
+  html += `<p class="buy-hint">הקשה על פריט מחזירה אותו למלאי · בסוף הקנייה — "הכל נקנה", ומה שלא הגיע מסמנים שוב כנגמר</p>`;
+  html += `<button class="cta" onclick="markAllBought()">הכל נקנה — חזרה למלאי (${fin.length})</button>`;
   return html;
 }
 
@@ -454,20 +565,59 @@ function toggleCat(id) {
   render();
 }
 
-/* ---- Swipe-to-delete on product rows (either direction) ---- */
+function rowTap(id) {
+  if (suppressClick) return;
+  if (swipeOpenId) { swipeOpenId = null; render(); return; }
+  toggleStatus(id);
+}
+
+function quickAdd() {
+  const input = document.getElementById('quickInput');
+  const name = input.value.trim();
+  if (!name) return;
+  // one-off items live in a hidden container category, created on demand
+  let cat = quickCat();
+  if (!cat) {
+    cat = { id: uid(), name: QUICK_CAT_NAME, sortOrder: 99 };
+    state.categories.push(cat);
+    push(db.from('categories').insert({ id: cat.id, name: cat.name, sort_order: 99 }));
+  }
+  addProduct(cat.id, name, '', true, STATUS.FINISHED);
+  input.value = '';
+  input.focus();
+  toast('נוסף לרשימה');
+}
+
+function markAllBought() {
+  const fin = buyList();
+  if (!fin.length) return;
+  const quickIds = fin.filter(isQuick).map(p => p.id);
+  const stockIds = fin.filter(p => !isQuick(p)).map(p => p.id);
+  state.products = state.products.filter(p => !quickIds.includes(p.id));
+  state.products.forEach(p => { if (stockIds.includes(p.id)) p.status = STATUS.IN_STOCK; });
+  render();
+  if (stockIds.length) push(db.from('products').update({ status: STATUS.IN_STOCK, updated_at: new Date().toISOString() }).in('id', stockIds));
+  if (quickIds.length) push(db.from('products').delete().in('id', quickIds));
+  toast(`מעולה! ${fin.length} פריטים חזרו למלאי`);
+}
+
+/* ---- Swipe-left-to-delete (products tab): reveals an 88px delete button ---- */
 let swipe = null;
+let swipeOpenId = null;
 let suppressClick = false;
-const SWIPE_TRIGGER = 0.4; // fraction of row width that arms the delete
 
 appEl.addEventListener('touchstart', e => {
-  const row = e.target.closest('.product');
-  if (!row || row.classList.contains('removing')) return;
+  if (view !== 'home') return;
+  const row = e.target.closest('.prod');
+  if (!row) return;
+  const slide = row.querySelector('.row-slide');
+  slide.classList.remove('snap');
   swipe = {
-    row, inner: row.querySelector('.row-inner'), del: row.querySelector('.swipe-del'),
+    id: row.dataset.id, slide,
     x: e.touches[0].clientX, y: e.touches[0].clientY,
-    dx: 0, locked: false, armed: false, width: row.offsetWidth,
+    base: swipeOpenId === row.dataset.id ? -88 : 0,
+    dx: 0, locked: false,
   };
-  swipe.inner.classList.remove('snap');
 }, { passive: true });
 
 appEl.addEventListener('touchmove', e => {
@@ -475,132 +625,172 @@ appEl.addEventListener('touchmove', e => {
   const dx = e.touches[0].clientX - swipe.x;
   const dy = e.touches[0].clientY - swipe.y;
   if (!swipe.locked) {
-    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { swipe = null; return; } // it's a scroll
-    if (Math.abs(dx) < 12) return;
+    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { swipe.slide.classList.add('snap'); swipe = null; return; } // it's a scroll
+    if (Math.abs(dx) < 8) return;
     swipe.locked = true;
   }
-  swipe.dx = dx;
-  swipe.inner.style.transform = `translateX(${dx}px)`;
-  swipe.del.style.opacity = Math.min(Math.abs(dx) / 60, 1);
-  const armed = Math.abs(dx) > swipe.width * SWIPE_TRIGGER;
-  if (armed !== swipe.armed) {
-    swipe.armed = armed;
-    swipe.del.classList.toggle('armed', armed);
-    if (armed && navigator.vibrate) navigator.vibrate(10);
-  }
+  swipe.dx = Math.max(-96, Math.min(0, swipe.base + dx));
+  swipe.slide.style.transform = `translateX(${swipe.dx}px)`;
 }, { passive: true });
 
 appEl.addEventListener('touchend', () => {
   if (!swipe) return;
   const s = swipe; swipe = null;
+  s.slide.classList.add('snap');
   if (!s.locked) return;
   suppressClick = true;
   setTimeout(() => { suppressClick = false; }, 400);
-  if (s.armed) {
-    // slide fully out, collapse, then delete
-    const id = s.row.dataset.id;
-    s.inner.classList.add('snap');
-    s.inner.style.transform = `translateX(${s.dx > 0 ? s.width : -s.width}px)`;
-    s.row.classList.add('removing');
-    s.row.style.height = s.row.offsetHeight + 'px';
-    requestAnimationFrame(() => { s.row.style.height = '0px'; s.row.style.opacity = '0'; });
-    setTimeout(() => deleteProduct(id), 190);
+  if (s.dx < -55) {
+    swipeOpenId = s.id;
+    s.slide.style.transform = 'translateX(-88px)';
   } else {
-    s.inner.classList.add('snap');
-    s.inner.style.transform = '';
-    s.del.style.opacity = '0';
-    s.del.classList.remove('armed');
+    if (swipeOpenId === s.id) swipeOpenId = null;
+    s.slide.style.transform = 'translateX(0px)';
   }
 });
 
-/* a horizontal swipe must not also fire the row's click (status toggle / edit) */
-appEl.addEventListener('click', e => {
-  if (suppressClick) { e.stopPropagation(); e.preventDefault(); }
-}, true);
-
-function quickAdd() {
-  const input = document.getElementById('quickInput');
-  const name = input.value.trim();
-  if (!name) return;
-  // custom items: put in a "מהיר" category, created on demand, and mark finished (need to buy)
-  let cat = state.categories.find(c => c.name === 'מהיר / כללי');
-  if (!cat) {
-    cat = { id: uid(), name: 'מהיר / כללי', sortOrder: 99 };
-    state.categories.push(cat);
-    push(db.from('categories').insert({ id: cat.id, name: cat.name, sort_order: 99 }));
-  }
-  addProduct(cat.id, name, '', true, STATUS.FINISHED);
-  input.value = '';
-}
-
-function markAllOrdered() {
-  const ids = state.products.filter(p => p.status === STATUS.FINISHED).map(p => p.id);
-  state.products.forEach(p => { if (p.status === STATUS.FINISHED) p.status = STATUS.ORDERED; });
-  render();
-  push(db.from('products').update({ status: STATUS.ORDERED, updated_at: new Date().toISOString() }).in('id', ids));
-}
-
-/* ---- Modal helpers ---- */
+/* ---- Bottom sheets ---- */
 const overlay = document.getElementById('overlay');
 const sheet = document.getElementById('sheet');
 function closeSheet() { overlay.classList.remove('open'); sheet.innerHTML = ''; }
 overlay.addEventListener('click', e => { if (e.target === overlay) closeSheet(); });
 
-function openProductEditor(id, presetCategoryId) {
-  const editing = !!id;
-  const prod = editing ? state.products.find(p => p.id === id) : { name: '', note: '', categoryId: presetCategoryId };
-  const opts = state.categories.map(c =>
-    `<option value="${c.id}" ${c.id === prod.categoryId ? 'selected' : ''}>${esc(c.name)}</option>`).join('');
-  sheet.innerHTML = `
-    <h3>${editing ? 'עריכת מוצר' : 'מוצר חדש'}</h3>
-    <label>שם</label>
-    <input id="pName" value="${esc(prod.name)}" placeholder="לדוגמה: חלב" />
-    <label>קטגוריה</label>
-    <select id="pCat">${opts}</select>
-    <label>הערה (מותג / גודל / העדפה)</label>
-    <input id="pNote" value="${esc(prod.note)}" placeholder="לדוגמה: תנובה 5%, אריזה גדולה" />
-    <div class="actions">
-      ${editing ? `<button class="btn-danger" onclick="confirmDeleteProduct('${id}')">מחיקה</button>` : ''}
-      <button class="btn-secondary" onclick="closeSheet()">ביטול</button>
-      <button class="btn-primary" onclick="saveProductEditor('${id || ''}')">שמירה</button>
-    </div>`;
+function openSheet(html, focusId) {
+  sheet.innerHTML = `<div class="handle"></div>` + html;
   overlay.classList.add('open');
-  setTimeout(() => document.getElementById('pName').focus(), 50);
+  if (focusId) setTimeout(() => { const el = document.getElementById(focusId); if (el) el.focus(); }, 60);
 }
-function saveProductEditor(id) {
-  const name = document.getElementById('pName').value.trim();
-  const categoryId = document.getElementById('pCat').value;
-  const note = document.getElementById('pNote').value.trim();
-  if (!name) return;
-  if (id) updateProduct(id, { name, categoryId, note });
-  else addProduct(categoryId, name, note);
-  closeSheet();
-}
-function confirmDeleteProduct(id) { deleteProduct(id); closeSheet(); }
 
-function openCategoryEditor(id) {
-  const editing = !!id;
-  const cat = editing ? state.categories.find(c => c.id === id) : { name: '' };
-  sheet.innerHTML = `
-    <h3>${editing ? 'עריכת קטגוריה' : 'קטגוריה חדשה'}</h3>
-    <label>שם הקטגוריה</label>
-    <input id="cName" value="${esc(cat.name)}" placeholder="לדוגמה: מוצרי חלב" />
-    <div class="actions">
-      ${editing ? `<button class="btn-danger" onclick="confirmDeleteCategory('${id}')">מחיקה</button>` : ''}
-      <button class="btn-secondary" onclick="closeSheet()">ביטול</button>
-      <button class="btn-primary" onclick="saveCategoryEditor('${id || ''}')">שמירה</button>
-    </div>`;
-  overlay.classList.add('open');
-  setTimeout(() => document.getElementById('cName').focus(), 50);
+let sheetStatus = STATUS.IN_STOCK;
+function pickStatus(st) {
+  sheetStatus = st;
+  document.getElementById('segStock').className = st === STATUS.IN_STOCK ? 'sel-stock' : '';
+  document.getElementById('segFin').className = st === STATUS.FINISHED ? 'sel-fin' : '';
 }
-function saveCategoryEditor(id) {
-  const name = document.getElementById('cName').value.trim();
+
+function statusSegHtml() {
+  return `
+    <div class="seg">
+      <button id="segStock" class="${sheetStatus === STATUS.IN_STOCK ? 'sel-stock' : ''}" onclick="pickStatus('in_stock')">יש</button>
+      <button id="segFin" class="${sheetStatus === STATUS.FINISHED ? 'sel-fin' : ''}" onclick="pickStatus('finished')">נגמר</button>
+    </div>`;
+}
+
+/* edit item */
+function openItemSheet(id) {
+  const p = state.products.find(x => x.id === id);
+  if (!p) return;
+  sheetStatus = p.status;
+  openSheet(`
+    <div class="title">עריכת מוצר</div>
+    <input type="text" id="fName" value="${esc(p.name)}" placeholder="שם" />
+    <input type="text" id="fNote" value="${esc(p.note)}" placeholder="הערה — מותג, גודל, העדפה" />
+    ${statusSegHtml()}
+    <button class="save" onclick="saveItemSheet('${id}')">שמירה</button>
+    <button class="danger" onclick="deleteProduct('${id}'); closeSheet()">מחיקת המוצר</button>`, 'fName');
+}
+function saveItemSheet(id) {
+  const name = document.getElementById('fName').value.trim();
   if (!name) return;
-  if (id) updateCategory(id, name); else addCategory(name);
+  updateProduct(id, { name, note: document.getElementById('fNote').value.trim(), status: sheetStatus });
   closeSheet();
+  toast('נשמר');
+}
+
+/* new item */
+function openNewItemSheet(catId) {
+  openSheet(`
+    <div class="title">מוצר חדש</div>
+    <input type="text" id="fName" placeholder="שם" />
+    <input type="text" id="fNote" placeholder="הערה — מותג, גודל, העדפה" />
+    <button class="save" onclick="saveNewItem('${catId}')">שמירה</button>`, 'fName');
+}
+function saveNewItem(catId) {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) return;
+  addProduct(catId, name, document.getElementById('fNote').value.trim());
+  closeSheet();
+  toast('נשמר');
+}
+
+/* new / edit category */
+function openNewCatSheet() {
+  openSheet(`
+    <div class="title">קטגוריה חדשה</div>
+    <input type="text" id="fName" placeholder="שם" />
+    <button class="save" onclick="saveNewCat()">שמירה</button>`, 'fName');
+}
+function saveNewCat() {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) return;
+  addCategory(name);
+  closeSheet();
+  toast('נשמר');
+}
+function openCatSheet(id) {
+  const c = state.categories.find(x => x.id === id);
+  if (!c) return;
+  openSheet(`
+    <div class="title">עריכת קטגוריה</div>
+    <input type="text" id="fName" value="${esc(c.name)}" placeholder="שם" />
+    <button class="save" onclick="saveCatSheet('${id}')">שמירה</button>
+    <button class="danger" onclick="confirmDeleteCategory('${id}')">מחיקת הקטגוריה</button>`, 'fName');
+}
+function saveCatSheet(id) {
+  const name = document.getElementById('fName').value.trim();
+  if (!name) return;
+  updateCategory(id, name);
+  closeSheet();
+  toast('נשמר');
 }
 function confirmDeleteCategory(id) {
   if (confirm('למחוק את הקטגוריה וכל המוצרים שבה?')) { deleteCategory(id); closeSheet(); }
+}
+
+/* save quick item to a category */
+function openSaveQuickSheet(id) {
+  const pills = visibleCats().map(c =>
+    `<button onclick="saveQuickTo('${id}','${c.id}')">${esc(c.name)}</button>`).join('');
+  openSheet(`
+    <div class="title">שמירה לקטגוריה</div>
+    <div class="cat-pills">${pills}</div>`);
+}
+function saveQuickTo(id, catId) {
+  const cat = state.categories.find(c => c.id === catId);
+  updateProduct(id, { categoryId: catId, isCustom: false });
+  closeSheet();
+  toast('נשמר לקטגוריה ' + (cat ? cat.name : ''));
+}
+
+/* settings: palette / finished color / notes */
+function openSettings() {
+  const palBtns = Object.keys(PALETTES).map(p =>
+    `<button class="${prefs.palette === p ? 'sel-stock' : ''}" onclick="setPalette('${p}')">${p}</button>`).join('');
+  const swatches = FIN_COLORS.map(c =>
+    `<button class="swatch ${(prefs.fin || PALETTES[prefs.palette].fin) === c ? 'sel' : ''}" style="background:${c}" onclick="setFin('${c}')"></button>`).join('');
+  openSheet(`
+    <div class="title">עיצוב</div>
+    <div class="set-label">פלטת צבעים</div>
+    <div class="seg" id="palSeg">${palBtns}</div>
+    <div class="set-label">צבע "נגמר"</div>
+    <div class="swatches" id="finSw">${swatches}</div>
+    <div class="set-label">הערות</div>
+    <div class="seg" id="noteSeg">
+      <button class="${prefs.showNotes ? 'sel-stock' : ''}" onclick="setNotes(true)">מוצגות</button>
+      <button class="${prefs.showNotes ? '' : 'sel-stock'}" onclick="setNotes(false)">מוסתרות</button>
+    </div>`);
+}
+function setPalette(p) { prefs.palette = p; savePrefs(); render(); openSettings(); }
+function setFin(c) { prefs.fin = c; savePrefs(); render(); openSettings(); }
+function setNotes(v) { prefs.showNotes = v; savePrefs(); render(); openSettings(); }
+
+/* ---- Toast ---- */
+const toastHost = document.getElementById('toastHost');
+let toastTimer = null;
+function toast(msg) {
+  clearTimeout(toastTimer);
+  toastHost.innerHTML = `<div class="toast">${esc(msg)}</div>`;
+  toastTimer = setTimeout(() => { toastHost.innerHTML = ''; }, 1900);
 }
 
 /* enter key on quick-add */
