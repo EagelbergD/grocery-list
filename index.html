@@ -210,6 +210,17 @@
   .swatch { width: 32px; height: 32px; border-radius: 999px; border: 2.5px solid transparent; cursor: pointer; padding: 0; }
   .swatch.sel { border-color: var(--ink); }
 
+  /* ---- Offline banner ---- */
+  .offbar { display: none; margin: 10px 16px 0; padding: 12px 14px; background: var(--card); border: 1.5px solid var(--del); border-radius: 14px; }
+  body.offline .offbar { display: block; }
+  .offbar .t { font-size: 13.5px; font-weight: 800; color: var(--del); margin-bottom: 3px; }
+  .offbar .d { font-size: 12.5px; color: var(--muted); line-height: 1.55; }
+  .offbar .retry {
+    margin-top: 9px; border: 1.5px solid var(--accBord); background: none; color: var(--accDark);
+    border-radius: 99px; padding: 7px 16px; font-size: 12.5px; font-weight: 700;
+    cursor: pointer; font-family: inherit;
+  }
+
   /* ---- Toast ---- */
   .toast {
     position: fixed; bottom: calc(82px + env(safe-area-inset-bottom)); right: 50%; transform: translateX(50%);
@@ -221,6 +232,7 @@
 </head>
 <body>
 <div class="hdr" id="hdr"></div>
+<div class="offbar" id="offbar"></div>
 <main id="app" class="home"></main>
 
 <nav>
@@ -283,6 +295,16 @@ let view = 'home';
 const collapsed = new Set();
 let syncText = 'טוען…';
 
+/* Connection state. When the backend is unreachable (most likely cause: the
+   Supabase free-tier project paused itself), the app falls back to the last
+   known list from this device and refuses writes rather than showing a blank
+   screen and silently dropping taps. */
+let online = true;
+let realtimeOk = false;
+let cachedAt = null;
+let retryTimer = null;
+let retryDelay = 5000;
+
 function uid() { return crypto.randomUUID(); }
 const isQuick = p => !!p.isCustom;
 const quickCat = () => state.categories.find(c => c.name === QUICK_CAT_NAME);
@@ -294,19 +316,78 @@ function setSync(text) { syncText = text; renderHeader(); }
 const prodFromRow = r => ({ id: r.id, categoryId: r.category_id, name: r.name, status: r.status, note: r.note || '', isCustom: r.is_custom });
 const catFromRow = r => ({ id: r.id, name: r.name, sortOrder: r.sort_order || 0 });
 
+/* ---- local cache of the last known good list ---- */
+const CACHE_KEY = 'grocery-cache-v1';
+let cacheTimer = null;
+function cacheSave() {
+  if (!online || !state.categories.length) return;
+  try { localStorage.setItem(CACHE_KEY, JSON.stringify({ at: Date.now(), state })); } catch (e) {}
+}
+function cacheSaveSoon() { clearTimeout(cacheTimer); cacheTimer = setTimeout(cacheSave, 400); }
+function cacheLoad() {
+  try {
+    const c = JSON.parse(localStorage.getItem(CACHE_KEY) || 'null');
+    if (c && c.state && Array.isArray(c.state.categories)) return c;
+  } catch (e) {}
+  return null;
+}
+
+function syncLabel() {
+  if (!online) return 'לא מחובר';
+  return realtimeOk ? 'מסונכרן · 2 טלפונים' : 'מחובר';
+}
+function goOnline() {
+  const wasOffline = !online;
+  online = true;
+  clearTimeout(retryTimer);
+  retryDelay = 5000;
+  document.body.classList.remove('offline');
+  if (wasOffline) toast('החיבור חזר — הרשימה מעודכנת');
+}
+function goOffline(err) {
+  if (err) console.error(err);
+  online = false;
+  document.body.classList.add('offline');
+  if (!state.categories.length) {
+    const c = cacheLoad();
+    if (c) { state = c.state; cachedAt = c.at; }
+  }
+  setSync(syncLabel());
+  scheduleRetry();
+}
+function scheduleRetry() {
+  clearTimeout(retryTimer);
+  retryTimer = setTimeout(loadAll, retryDelay);
+  retryDelay = Math.min(retryDelay * 2, 60000); // back off to at most once a minute
+}
+function retryNow() { clearTimeout(retryTimer); retryDelay = 5000; setSync('טוען…'); loadAll(); }
+
+/* writes are refused while offline, so a tap is never silently lost */
+function requireOnline() {
+  if (online) return true;
+  toast('אין חיבור — השינוי לא נשמר');
+  return false;
+}
+
 async function loadAll() {
-  setSync('טוען…');
-  const [cats, prods] = await Promise.all([
-    db.from('categories').select('*').order('sort_order').order('created_at'),
-    db.from('products').select('*').order('name'),
-  ]);
-  if (cats.error || prods.error) { setSync('שגיאת חיבור'); console.error(cats.error || prods.error); return; }
+  if (!state.categories.length) setSync('טוען…');
+  let cats, prods;
+  try {
+    [cats, prods] = await Promise.all([
+      db.from('categories').select('*').order('sort_order').order('created_at'),
+      db.from('products').select('*').order('name'),
+    ]);
+  } catch (e) { goOffline(e); render(); return; }
+  if (cats.error || prods.error) { goOffline(cats.error || prods.error); render(); return; }
+  goOnline();
   state.categories = cats.data.map(catFromRow);
   state.products = prods.data.map(prodFromRow);
+  cachedAt = Date.now();
   if (!state.categories.length) { await seedRemote(); return; }
   migrateOrdered();
-  setSync('מסונכרן · 2 טלפונים');
+  setSync(syncLabel());
   render();
+  cacheSave();
 }
 
 /* one-time migration: the removed "ordered" status becomes in_stock */
@@ -351,22 +432,31 @@ db.channel('grocery-sync')
   .on('postgres_changes', { event: '*', schema: 'public', table: 'products' }, p => applyChange('products', prodFromRow, p))
   .on('postgres_changes', { event: '*', schema: 'public', table: 'categories' }, p => applyChange('categories', catFromRow, p))
   .subscribe(status => {
-    if (status === 'SUBSCRIBED') setSync('מסונכרן · 2 טלפונים');
-    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') setSync('לא מחובר');
+    if (status === 'SUBSCRIBED') { realtimeOk = true; setSync(syncLabel()); }
+    else if (status === 'CHANNEL_ERROR' || status === 'TIMED_OUT') {
+      // realtime dropping does not by itself mean the backend is down —
+      // let loadAll() be the authority on whether we are really offline
+      realtimeOk = false;
+      setSync(syncLabel());
+      scheduleRetry();
+    }
   });
 
 /* refresh when returning to the app (phone was asleep etc.) */
 document.addEventListener('visibilitychange', () => { if (!document.hidden) loadAll(); });
+window.addEventListener('online', retryNow);
 
 /* write helper: optimistic local update + push to DB */
 function push(promise) {
   promise.then(({ error }) => {
-    if (error) { console.error(error); setSync('שגיאת שמירה'); loadAll(); }
-  });
+    if (error) { console.error(error); toast('השמירה נכשלה — מרענן'); loadAll(); }
+    else cacheSaveSoon();
+  }).catch(e => { goOffline(e); render(); });
 }
 
 /* mutations */
 function toggleStatus(id) {
+  if (!requireOnline()) return;
   const prod = state.products.find(p => p.id === id);
   if (!prod) return;
   if (isQuick(prod) && prod.status === STATUS.FINISHED) {
@@ -380,12 +470,14 @@ function toggleStatus(id) {
   push(db.from('products').update({ status: prod.status, updated_at: new Date().toISOString() }).eq('id', id));
 }
 function addProduct(categoryId, name, note = '', isCustom = false, status = STATUS.IN_STOCK) {
+  if (!requireOnline()) return;
   const p = { id: uid(), categoryId, name: name.trim(), status, note, isCustom };
   state.products.push(p);
   render();
   push(db.from('products').insert({ id: p.id, category_id: categoryId, name: p.name, status, note, is_custom: isCustom }));
 }
 function updateProduct(id, fields) {
+  if (!requireOnline()) return;
   const prod = state.products.find(p => p.id === id);
   if (!prod) return;
   Object.assign(prod, fields);
@@ -396,18 +488,21 @@ function updateProduct(id, fields) {
   }).eq('id', id));
 }
 function deleteProduct(id, withToast = true) {
+  if (!requireOnline()) return;
   state.products = state.products.filter(p => p.id !== id);
   render();
   push(db.from('products').delete().eq('id', id));
   if (withToast) toast('המוצר נמחק');
 }
 function addCategory(name) {
+  if (!requireOnline()) return;
   const c = { id: uid(), name: name.trim(), sortOrder: state.categories.length };
   state.categories.push(c);
   render();
   push(db.from('categories').insert({ id: c.id, name: c.name, sort_order: c.sortOrder }));
 }
 function updateCategory(id, name) {
+  if (!requireOnline()) return;
   const c = state.categories.find(c => c.id === id);
   if (!c) return;
   c.name = name.trim();
@@ -415,6 +510,7 @@ function updateCategory(id, name) {
   push(db.from('categories').update({ name: c.name }).eq('id', id));
 }
 function deleteCategory(id) {
+  if (!requireOnline()) return;
   state.categories = state.categories.filter(c => c.id !== id);
   state.products = state.products.filter(p => p.categoryId !== id);
   render();
@@ -427,6 +523,7 @@ function deleteCategory(id) {
    ========================================================================= */
 const appEl = document.getElementById('app');
 const hdrEl = document.getElementById('hdr');
+const offbarEl = document.getElementById('offbar');
 
 function esc(s) { return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c])); }
 
@@ -447,8 +544,23 @@ function render() {
   navCount.textContent = n;
   navCount.style.display = n ? 'flex' : 'none';
   renderHeader();
+  renderOffbar();
   appEl.className = view;
   appEl.innerHTML = view === 'home' ? renderHome() : renderBuy();
+  cacheSaveSoon();
+}
+
+function renderOffbar() {
+  if (online) { offbarEl.innerHTML = ''; return; }
+  const when = cachedAt
+    ? new Date(cachedAt).toLocaleString('he-IL', { day: 'numeric', month: 'numeric', hour: '2-digit', minute: '2-digit' })
+    : null;
+  offbarEl.innerHTML = `
+    <div class="t">אין חיבור לשרת</div>
+    <div class="d">${when
+      ? `מוצגת הרשימה השמורה במכשיר (עדכון אחרון: ${esc(when)}).`
+      : 'אין עדיין רשימה שמורה במכשיר הזה.'} שינויים לא יישמרו עד שהחיבור יחזור.</div>
+    <button class="retry" onclick="retryNow()">נסה שוב</button>`;
 }
 
 function renderHeader() {
@@ -798,6 +910,9 @@ document.addEventListener('keydown', e => {
   if (e.key === 'Enter' && document.activeElement && document.activeElement.id === 'quickInput') quickAdd();
 });
 
+/* paint the cached list immediately, then refresh from the server */
+const booted = cacheLoad();
+if (booted) { state = booted.state; cachedAt = booted.at; }
 render();
 loadAll();
 </script>
