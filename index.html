@@ -76,13 +76,31 @@
   .cat.collapsed .chev { transform: rotate(-90deg); }
 
   /* ---- Item rows ---- */
-  .prod { position: relative; overflow: hidden; border-top: 1px solid var(--row); touch-action: pan-y; }
-  .prod .del-btn {
-    position: absolute; top: 0; bottom: 0; left: 0; width: 88px;
-    border: none; background: var(--del); color: #fff; font-size: 13px; font-weight: 700; cursor: pointer;
+  .prod {
+    position: relative; overflow: hidden; border-top: 1px solid var(--row);
+    touch-action: pan-y; --sw: 0; /* 0..1 swipe progress, set from JS */
   }
-  .row-slide { position: relative; will-change: transform; }
+  /* the row slides to the physical left, uncovering the delete backdrop on the right */
+  .prod .del-bg {
+    position: absolute; inset: 0; pointer-events: none;
+    display: flex; align-items: center; justify-content: flex-start; gap: 8px;
+    padding-inline-start: 22px;
+    background: var(--del); color: #fff; font-size: 13px; font-weight: 700;
+    opacity: calc(.45 + var(--sw) * .55);
+  }
+  .prod .del-bg .ico {
+    font-size: 19px; line-height: 1;
+    /* past the commit point the icon pops, so you can feel the release point before letting go */
+    transform: scale(calc(.75 + var(--sw) * .45));
+  }
+  .prod.armed .del-bg { opacity: 1; }
+  .prod.collapsing { transition: height .16s ease-in, opacity .16s ease-in; overflow: hidden; }
+  .row-slide {
+    position: relative; will-change: transform;
+    user-select: none; -webkit-user-select: none; -webkit-touch-callout: none;
+  }
   .row-slide.snap { transition: transform .18s ease-out; }
+  .row-slide.fling { transition: transform .16s ease-in; }
   .row-main {
     display: flex; align-items: center; gap: 8px; padding: 10px 16px;
     cursor: pointer; background: var(--card);
@@ -529,7 +547,6 @@ function esc(s) { return (s || '').replace(/[&<>"]/g, c => ({'&':'&amp;','<':'&l
 
 function setView(v) {
   view = v;
-  swipeOpenId = null;
   document.getElementById('navHome').classList.toggle('active', v === 'home');
   document.getElementById('navBuy').classList.toggle('active', v === 'buy');
   render();
@@ -589,11 +606,10 @@ function chipHtml(p) { return `<div class="chip ${p.status}">${p.status === STAT
 function noteHtml(p) { return prefs.showNotes && p.note ? `<div class="note">${esc(p.note)}</div>` : ''; }
 
 function productRow(p) {
-  const open = swipeOpenId === p.id;
   return `
     <div class="prod" data-id="${p.id}">
-      <button class="del-btn" onclick="deleteProduct('${p.id}')">מחיקה</button>
-      <div class="row-slide snap" style="transform:translateX(${open ? -88 : 0}px)">
+      <div class="del-bg"><span class="ico">🗑</span>מחיקה</div>
+      <div class="row-slide snap">
         <div class="row-main" onclick="rowTap('${p.id}')">
           <div class="txt">
             <div class="nm">${esc(p.name)}</div>
@@ -679,7 +695,6 @@ function toggleCat(id) {
 
 function rowTap(id) {
   if (suppressClick) return;
-  if (swipeOpenId) { swipeOpenId = null; render(); return; }
   toggleStatus(id);
 }
 
@@ -713,53 +728,91 @@ function markAllBought() {
   toast(`מעולה! ${fin.length} פריטים חזרו למלאי`);
 }
 
-/* ---- Swipe-left-to-delete (products tab): reveals an 88px delete button ---- */
+/* ---- Swipe-left-to-delete (products tab): drag past the commit point and release ---- */
 let swipe = null;
-let swipeOpenId = null;
 let suppressClick = false;
 
-appEl.addEventListener('touchstart', e => {
-  if (view !== 'home') return;
+const COMMIT_FRACTION = .38;   // of the row width — past this, releasing deletes
+const COMMIT_MIN = 72;         // ...but never less than this, so narrow rows still need a real swipe
+
+function setSwipeX(s, x) {
+  s.dx = x;
+  s.slide.style.transform = `translateX(${x}px)`;
+  s.row.style.setProperty('--sw', Math.min(1, x / -s.commit).toFixed(3));
+  s.row.classList.toggle('armed', x <= -s.commit);
+}
+
+appEl.addEventListener('pointerdown', e => {
+  if (view !== 'home' || e.button !== 0) return;
   const row = e.target.closest('.prod');
   if (!row) return;
   const slide = row.querySelector('.row-slide');
-  slide.classList.remove('snap');
+  slide.classList.remove('snap', 'fling');
   swipe = {
-    id: row.dataset.id, slide,
-    x: e.touches[0].clientX, y: e.touches[0].clientY,
-    base: swipeOpenId === row.dataset.id ? -88 : 0,
-    dx: 0, locked: false,
+    id: row.dataset.id, row, slide, pointerId: e.pointerId,
+    x: e.clientX, y: e.clientY,
+    width: row.offsetWidth,
+    commit: Math.max(COMMIT_MIN, row.offsetWidth * COMMIT_FRACTION),
+    dx: 0, locked: false, buzzed: false,
   };
-}, { passive: true });
+});
 
-appEl.addEventListener('touchmove', e => {
-  if (!swipe) return;
-  const dx = e.touches[0].clientX - swipe.x;
-  const dy = e.touches[0].clientY - swipe.y;
+appEl.addEventListener('pointermove', e => {
+  if (!swipe || e.pointerId !== swipe.pointerId) return;
+  const dx = e.clientX - swipe.x;
+  const dy = e.clientY - swipe.y;
   if (!swipe.locked) {
-    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { swipe.slide.classList.add('snap'); swipe = null; return; } // it's a scroll
+    if (Math.abs(dy) > 12 && Math.abs(dy) > Math.abs(dx)) { endSwipe(true); return; } // it's a scroll
     if (Math.abs(dx) < 8) return;
     swipe.locked = true;
+    // once we own the gesture, keep the pointer even if the finger leaves the row
+    try { appEl.setPointerCapture(e.pointerId); } catch {}
   }
-  swipe.dx = Math.max(-96, Math.min(0, swipe.base + dx));
-  swipe.slide.style.transform = `translateX(${swipe.dx}px)`;
-}, { passive: true });
-
-appEl.addEventListener('touchend', () => {
-  if (!swipe) return;
-  const s = swipe; swipe = null;
-  s.slide.classList.add('snap');
-  if (!s.locked) return;
-  suppressClick = true;
-  setTimeout(() => { suppressClick = false; }, 400);
-  if (s.dx < -55) {
-    swipeOpenId = s.id;
-    s.slide.style.transform = 'translateX(-88px)';
-  } else {
-    if (swipeOpenId === s.id) swipeOpenId = null;
-    s.slide.style.transform = 'translateX(0px)';
+  setSwipeX(swipe, Math.min(0, dx));
+  // one nudge when the swipe arms, so the commit point is felt and not just seen
+  if (swipe.dx <= -swipe.commit && !swipe.buzzed) {
+    swipe.buzzed = true;
+    navigator.vibrate?.(12);
+  } else if (swipe.dx > -swipe.commit) {
+    swipe.buzzed = false;
   }
 });
+
+function endSwipe(cancel = false) {
+  if (!swipe) return;
+  const s = swipe; swipe = null;
+  try { appEl.releasePointerCapture(s.pointerId); } catch {}
+  if (!s.locked || cancel) {
+    s.slide.classList.add('snap');
+    if (s.locked) setSwipeX(s, 0);
+    return;
+  }
+  suppressClick = true;
+  setTimeout(() => { suppressClick = false; }, 400);
+
+  if (s.dx > -s.commit) {                       // not far enough — spring back
+    s.slide.classList.add('snap');
+    setSwipeX(s, 0);
+    return;
+  }
+  if (!requireOnline()) {                       // offline: undo the drag, requireOnline explains why
+    s.slide.classList.add('snap');
+    setSwipeX(s, 0);
+    return;
+  }
+  // committed: fling the row out, collapse its height, then delete
+  s.slide.classList.add('fling');
+  s.slide.style.transform = `translateX(${-s.width}px)`;
+  s.row.style.height = `${s.row.offsetHeight}px`;
+  requestAnimationFrame(() => {
+    s.row.classList.add('collapsing');
+    requestAnimationFrame(() => { s.row.style.height = '0px'; s.row.style.opacity = '0'; });
+  });
+  setTimeout(() => deleteProduct(s.id), 170);   // render() rebuilds the list without it
+}
+
+appEl.addEventListener('pointerup', e => { if (swipe && e.pointerId === swipe.pointerId) endSwipe(); });
+appEl.addEventListener('pointercancel', e => { if (swipe && e.pointerId === swipe.pointerId) endSwipe(true); });
 
 /* ---- Bottom sheets ---- */
 const overlay = document.getElementById('overlay');
